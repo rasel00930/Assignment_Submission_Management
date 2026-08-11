@@ -1,0 +1,43 @@
+@baseUrl = https://localhost:7081
+@token = PASTE_ACCESS_TOKEN_HERE
+
+### Health
+GET {{baseUrl}}/health
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "admin",
+  "password": "Admin@123"
+}
+
+### Current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Get institution
+GET {{baseUrl}}/api/admin/institution
+Authorization: Bearer {{token}}
+
+### Create class/course
+POST {{baseUrl}}/api/admin/classes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Class 10",
+  "section": "A",
+  "academicYear": "2026"
+}
+
+### Create subject
+POST {{baseUrl}}/api/admin/subjects
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Mathematics",
+  "code": "MATH-10"
+}

@@ -1,0 +1,46 @@
+using System.ComponentModel.DataAnnotations;
+using AssignmentManagement.Core.Enums;
+using AssignmentManagement.Core.Models.Common;
+
+namespace AssignmentManagement.Core.Models.DTO;
+
+public sealed class SubmissionQueryRequest : PagingRequest
+{
+    public long? AssignmentId { get; set; }
+    public long? StudentId { get; set; }
+    public SubmissionStatus? Status { get; set; }
+}
+
+public sealed class SubmitAssignmentRequest
+{
+    [Required, MinLength(1)]
+    public string AnswerText { get; set; } = null!;
+}
+
+public sealed class ReviewSubmissionRequest
+{
+    [Range(typeof(decimal), "0", "10000")]
+    public decimal? Marks { get; set; }
+
+    [MaxLength(5000)]
+    public string? Feedback { get; set; }
+
+    [EnumDataType(typeof(SubmissionStatus))]
+    public SubmissionStatus Status { get; set; }
+}
+
+public sealed record SubmissionResponse(
+    long Id,
+    long AssignmentId,
+    string AssignmentTitle,
+    decimal AssignmentMaximumMarks,
+    long StudentId,
+    string StudentName,
+    string StudentUserName,
+    string AnswerText,
+    DateTime SubmittedAtUtc,
+    SubmissionStatus Status,
+    decimal? Marks,
+    string? Feedback,
+    DateTime? ReviewedAtUtc,
+    string? ReviewedByTeacherName);

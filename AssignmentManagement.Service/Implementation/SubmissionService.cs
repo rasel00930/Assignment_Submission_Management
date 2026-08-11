@@ -1,0 +1,286 @@
+using AssignmentManagement.Core.Enums;
+using AssignmentManagement.Core.Exceptions;
+using AssignmentManagement.Core.Interfaces;
+using AssignmentManagement.Core.Models.Common;
+using AssignmentManagement.Core.Models.DTO;
+using AssignmentManagement.Core.Models.Entities;
+using AssignmentManagement.Core.Rules;
+using AssignmentManagement.Service.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace AssignmentManagement.Service.Implementation;
+
+public sealed class SubmissionService : ISubmissionService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IDateTimeProvider _dateTimeProvider;
+
+    public SubmissionService(
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser,
+        IDateTimeProvider dateTimeProvider)
+    {
+        _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
+        _dateTimeProvider = dateTimeProvider;
+    }
+
+    public async Task<PagedResponse<SubmissionResponse>> GetAsync(
+    SubmissionQueryRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        var query = ApplyCurrentUserAccess(
+            _unitOfWork.Submissions.Table.AsNoTracking());
+
+        if (request.AssignmentId.HasValue)
+        {
+            query = query.Where(x =>
+                x.AssignmentId == request.AssignmentId.Value);
+        }
+
+        if (request.StudentId.HasValue)
+        {
+            query = query.Where(x =>
+                x.StudentId == request.StudentId.Value);
+        }
+
+        if (request.Status.HasValue)
+        {
+            query = query.Where(x =>
+                x.Status == request.Status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim().ToLower();
+
+            query = query.Where(x =>
+                x.Assignment.Title.ToLower().Contains(search) ||
+                x.Student.FullName.ToLower().Contains(search) ||
+                x.Student.UserName.ToLower().Contains(search));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(x => x.SubmittedAtUtc)
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(x => new SubmissionResponse(
+                x.Id,
+                x.AssignmentId,
+                x.Assignment.Title,
+                x.Assignment.MaximumMarks,
+                x.StudentId,
+                x.Student.FullName,
+                x.Student.UserName,
+                x.AnswerText,
+                x.SubmittedAtUtc,
+                x.Status,
+                x.Marks,
+                x.Feedback,
+                x.ReviewedAtUtc,
+                x.ReviewedByTeacherId.HasValue
+                    ? x.ReviewedByTeacher!.FullName
+                    : null))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<SubmissionResponse>(
+            items,
+            request.PageNumber,
+            request.PageSize,
+            totalCount);
+    }
+
+    public async Task<SubmissionResponse> GetByIdAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var accessData = await _unitOfWork.Submissions.Table
+            .AsNoTracking()
+            .Where(x => x.Id == id && x.InstitutionId == _currentUser.InstitutionId && x.IsActive)
+            .Select(x => new
+            {
+                x.StudentId,
+                AssignmentTeacherId = x.Assignment.CreatedByTeacherId
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (accessData is null || !AuthorizationRules.CanViewSubmission(
+                _currentUser.Roles,
+                _currentUser.UserId,
+                accessData.StudentId,
+                accessData.AssignmentTeacherId))
+            throw new AppException(404, "Submission was not found or you do not have access to it.");
+
+        return await Project(_unitOfWork.Submissions.Table.AsNoTracking().Where(x => x.Id == id))
+            .FirstAsync(cancellationToken);
+    }
+
+    public async Task<SubmissionResponse> SubmitAsync(
+        long assignmentId,
+        SubmitAssignmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_currentUser.AcademicClassId.HasValue)
+            throw new AppException(409, "The student is not assigned to a class/course.");
+
+        var assignment = await _unitOfWork.Assignments.Table
+            .AsNoTracking()
+            .Include(x => x.TeacherClassSubject)
+            .FirstOrDefaultAsync(
+                x => x.Id == assignmentId &&
+                     x.InstitutionId == _currentUser.InstitutionId &&
+                     x.IsActive,
+                cancellationToken)
+            ?? throw new AppException(404, "Assignment was not found.");
+
+        if (assignment.Status != AssignmentStatus.Published)
+            throw new AppException(409, "Only a published assignment can receive submissions.");
+
+        if (assignment.TeacherClassSubject.AcademicClassId != _currentUser.AcademicClassId.Value)
+            throw new AppException(403, "This assignment is not assigned to your class/course.");
+
+        var allowLateSubmission = await GetBooleanSettingAsync(
+            "AllowLateSubmission",
+            defaultValue: false,
+            cancellationToken);
+        var allowStudentSubmissionUpdate = await GetBooleanSettingAsync(
+            "AllowStudentSubmissionUpdate",
+            defaultValue: true,
+            cancellationToken);
+
+        var existing = await _unitOfWork.Submissions.FirstOrDefaultAsync(
+            x => x.AssignmentId == assignmentId && x.StudentId == _currentUser.UserId,
+            trackChanges: true,
+            cancellationToken: cancellationToken);
+
+        if (existing is null)
+        {
+            var status = SubmissionRules.GetInitialStatus(
+                assignment.DeadlineUtc,
+                _dateTimeProvider.UtcNow,
+                allowLateSubmission);
+
+            existing = new Submission
+            {
+                AnswerText = request.AnswerText.Trim(),
+                SubmittedAtUtc = _dateTimeProvider.UtcNow,
+                Status = status,
+                InstitutionId = _currentUser.InstitutionId,
+                AssignmentId = assignment.Id,
+                StudentId = _currentUser.UserId,
+                CreatedAtUtc = _dateTimeProvider.UtcNow,
+                CreatedByUserId = _currentUser.UserId
+            };
+            await _unitOfWork.Submissions.AddAsync(existing, cancellationToken);
+        }
+        else
+        {
+            SubmissionRules.ValidateResubmission(
+                assignment.AllowResubmission,
+                allowStudentSubmissionUpdate,
+                assignment.DeadlineUtc,
+                _dateTimeProvider.UtcNow,
+                existing.Status);
+
+            existing.AnswerText = request.AnswerText.Trim();
+            existing.SubmittedAtUtc = _dateTimeProvider.UtcNow;
+            existing.Status = SubmissionStatus.Resubmitted;
+            existing.Marks = null;
+            existing.Feedback = null;
+            existing.ReviewedAtUtc = null;
+            existing.ReviewedByTeacherId = null;
+            existing.UpdatedAtUtc = _dateTimeProvider.UtcNow;
+            existing.UpdatedByUserId = _currentUser.UserId;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetByIdAsync(existing.Id, cancellationToken);
+    }
+
+    public async Task<SubmissionResponse> ReviewAsync(
+        long id,
+        ReviewSubmissionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var submission = await _unitOfWork.Submissions.Table
+            .Include(x => x.Assignment)
+            .FirstOrDefaultAsync(
+                x => x.Id == id &&
+                     x.InstitutionId == _currentUser.InstitutionId &&
+                     x.Assignment.CreatedByTeacherId == _currentUser.UserId,
+                cancellationToken)
+            ?? throw new AppException(404, "Submission was not found or the assignment does not belong to you.");
+
+        SubmissionRules.ValidateReview(
+            request.Marks,
+            submission.Assignment.MaximumMarks,
+            request.Feedback,
+            request.Status);
+
+        submission.Marks = request.Marks;
+        submission.Feedback = string.IsNullOrWhiteSpace(request.Feedback) ? null : request.Feedback.Trim();
+        submission.Status = request.Status;
+        submission.ReviewedAtUtc = _dateTimeProvider.UtcNow;
+        submission.ReviewedByTeacherId = _currentUser.UserId;
+        submission.UpdatedAtUtc = _dateTimeProvider.UtcNow;
+        submission.UpdatedByUserId = _currentUser.UserId;
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetByIdAsync(submission.Id, cancellationToken);
+    }
+
+    private IQueryable<Submission> ApplyCurrentUserAccess(IQueryable<Submission> query)
+    {
+        query = query.Where(x => x.InstitutionId == _currentUser.InstitutionId && x.IsActive);
+
+        if (_currentUser.IsInRole(AppRoles.Admin))
+            return query;
+
+        if (_currentUser.IsInRole(AppRoles.Teacher))
+            return query.Where(x => x.Assignment.CreatedByTeacherId == _currentUser.UserId);
+
+        if (_currentUser.IsInRole(AppRoles.Student))
+            return query.Where(x => x.StudentId == _currentUser.UserId);
+
+        return query.Where(_ => false);
+    }
+
+    private async Task<bool> GetBooleanSettingAsync(
+        string key,
+        bool defaultValue,
+        CancellationToken cancellationToken)
+    {
+        var value = await _unitOfWork.Settings.Table
+            .AsNoTracking()
+            .Where(x => x.InstitutionId == _currentUser.InstitutionId && x.Key == key && x.IsActive)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return bool.TryParse(value, out var parsed) ? parsed : defaultValue;
+    }
+
+    private static IQueryable<SubmissionResponse> Project(
+    IQueryable<Submission> query)
+    {
+        return query.Select(x => new SubmissionResponse(
+            x.Id,
+            x.AssignmentId,
+            x.Assignment.Title,
+            x.Assignment.MaximumMarks,
+            x.StudentId,
+            x.Student.FullName,
+            x.Student.UserName,
+            x.AnswerText,
+            x.SubmittedAtUtc,
+            x.Status,
+            x.Marks,
+            x.Feedback,
+            x.ReviewedAtUtc,
+            x.ReviewedByTeacherId.HasValue
+                ? x.ReviewedByTeacher!.FullName
+                : null));
+    }
+}

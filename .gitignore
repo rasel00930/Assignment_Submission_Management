@@ -1,0 +1,9 @@
+.vs/
+bin/
+obj/
+TestResults/
+logs/
+*.user
+*.suo
+appsettings.Production.json
+.env
