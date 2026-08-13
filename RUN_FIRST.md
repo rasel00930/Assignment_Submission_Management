@@ -1,51 +1,48 @@
-# Run First — Beginner Setup
+# Run First - Beginner Setup
 
-## Required software
+The complete setup guide is in `README.md`. These are the shortest Windows startup steps.
 
-1. Visual Studio 2022 with **ASP.NET and web development** workload.
-2. .NET 8 SDK.
+## Required Software
+
+1. Node.js 20 or newer.
+2. .NET 8 SDK or Visual Studio 2022 with the ASP.NET workload.
 3. PostgreSQL 15 or newer.
-4. pgAdmin 4 (installed with PostgreSQL).
 
-## First run
+## Start the Backend
 
-1. Extract the ZIP.
-2. Open `AssignmentSubmissionManagement.sln` in Visual Studio.
-3. Right-click `AssignmentManagement.WebAPI` and select **Set as Startup Project**.
-4. Open `AssignmentManagement.WebAPI/appsettings.json`.
-5. Change the PostgreSQL username/password in `DefaultConnection` if your local values are different.
-6. Start PostgreSQL from Windows Services if it is not running.
-7. Press **F5**.
+1. Update `Backend/AssignmentManagement.WebAPI/appsettings.json` with your PostgreSQL username and password.
+2. Ensure PostgreSQL is running.
+3. Run:
 
-`Database:AutoCreate` is `true`, so the API attempts to create:
+```powershell
+cd Backend
+dotnet restore
+dotnet run --project AssignmentManagement.WebAPI
+```
 
-- database: `assignment_management_db`
-- all required tables
-- Admin, Teacher, Student roles
-- default institution
-- initial Admin user
-- default application settings
+Swagger should open at <https://localhost:7081/swagger>. The API automatically creates the schema and seeds demo data when `Database:AutoCreate` is `true`.
 
-## Default Admin
+If automatic creation fails, run `Database/000_create_database.sql`, then `Database/001_initial_schema.sql`, and restart the API.
 
-- Username: `admin`
-- Password: `Admin@123`
+## Start the Frontend
 
-Change the password after the first login.
+Open another terminal from the repository root:
 
-## If automatic database creation fails
+```powershell
+cd FrontEnd
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
 
-1. Open pgAdmin.
-2. Connect to the `postgres` database.
-3. Run `Database/000_create_database.sql`.
-4. Connect to `assignment_management_db`.
-5. Run `Database/001_initial_schema.sql`.
-6. Run the API again. The API will seed roles, settings, and the Admin user.
+Open <http://localhost:3000>.
 
-## First Swagger test
+## Demo Accounts
 
-1. Run the API and open `/swagger`.
-2. Call `POST /api/auth/login`.
-3. Copy `data.accessToken`.
-4. Click **Authorize** and paste only the token.
-5. Test Admin endpoints.
+| Role | Username | Password |
+| --- | --- | --- |
+| Admin | `admin` | `Admin@123` |
+| Teacher | `teacher` | `Teacher@123` |
+| Student | `student` | `Student@123` |
+
+Change all demo passwords before deployment.

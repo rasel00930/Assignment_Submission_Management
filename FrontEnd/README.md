@@ -1,235 +1,150 @@
 # AssignmentHub Frontend
 
-A complete responsive frontend for the **Assignment & Submission Management System**.
+Responsive Next.js frontend for the role-based Assignment & Submission Management System. The complete repository setup, database instructions, demo credentials, and evaluation flow are documented in the root `README.md`.
 
 ## Technology
 
-- Next.js App Router
-- React
-- TypeScript
+- Next.js 15 App Router
+- React 19 and TypeScript
 - Tailwind CSS
-- React Hook Form
-- Zod validation
+- React Hook Form and Zod validation
 - Axios API integration
-- JWT access token + refresh token handling
-- Role-based route protection
+- JWT access token and refresh-token handling
+- Role-based protected routes
 
-## Roles and screens
+## Role-Based Screens
 
 ### Admin
 
-- Dashboard
-- User management
-- Class/course management
-- Subject management
-- Teacher–class–subject mapping
-- Institution configuration
-- Application settings
-- View all assignments
-- View all submissions
-- Password reset and account activation/deactivation
+- Dashboard and institution summary
+- User creation, update, activation/deactivation, and password reset
+- Class/course and subject management
+- Teacher-Class-Subject mapping
+- Institution and application settings
+- All assignments and submissions
 
 ### Teacher
 
 - Dashboard
-- Create assignment
-- Edit assignment
-- Draft/publish/close/delete assignment
-- View submissions
-- Review answer
-- Give marks and feedback
-- Change submission status
+- Assignment creation and editing
+- Draft, publish, close, and delete actions
+- Submission review, marks, feedback, and status changes
 
 ### Student
 
-- Dashboard
-- View published assignments
-- View assignment details and deadline
-- Submit answer
-- Update answer before deadline when permitted
-- View submission status, marks and feedback
+- Dashboard and assigned work
+- Published assignment details and deadlines
+- Answer submission and permitted updates
+- Submission status, marks, and feedback
 
-## 1. Install Node.js
+## Requirements
 
-Install Node.js 20 or newer. Check it from Command Prompt:
+- Node.js 20 or newer
+- npm
+- Running backend API from this repository
+
+## Setup
+
+From the `FrontEnd` directory:
 
 ```powershell
-node --version
-npm --version
+Copy-Item .env.example .env.local
+npm install
+npm run dev
 ```
 
-## 2. Open the project
-
-Extract the ZIP, then open the extracted frontend folder in Visual Studio Code.
-
-## 3. Create environment file
-
-Copy `.env.example` and rename the copy to `.env.local`.
+Configure `.env.local`:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://localhost:7081
 ```
 
-The backend project currently uses:
+Open <http://localhost:3000>. The backend CORS configuration permits this origin by default.
+
+Start the backend before testing login or data screens. Swagger should be available at <https://localhost:7081/swagger>.
+
+## Demo Logins
+
+| Role | Username | Password |
+| --- | --- | --- |
+| Admin | `admin` | `Admin@123` |
+| Teacher | `teacher` | `Teacher@123` |
+| Student | `student` | `Student@123` |
+
+The accounts are seeded by the backend on first startup.
+
+## Project Structure
 
 ```text
-https://localhost:7081
-http://localhost:5081
+FrontEnd/
+|-- app/
+|   |-- login/
+|   `-- (protected)/
+|       |-- admin/
+|       |-- teacher/
+|       |-- student/
+|       |-- dashboard/
+|       `-- profile/
+|-- components/
+|   |-- assignments/
+|   |-- auth/
+|   |-- common/
+|   |-- layout/
+|   |-- submissions/
+|   `-- ui/
+|-- lib/
+|   |-- api.ts
+|   |-- auth-storage.ts
+|   |-- constants.ts
+|   |-- services.ts
+|   |-- types.ts
+|   `-- utils.ts
+|-- .env.example
+|-- package.json
+`-- README.md
 ```
 
-Use the HTTPS address shown by Swagger or Visual Studio.
+## Authentication Design
 
-## 4. Install packages
+- The access token and refresh token are stored together in browser local storage.
+- Axios automatically adds the JWT access token to API requests.
+- A `401 Unauthorized` response attempts one refresh-token rotation.
+- A failed refresh removes the session and sends the user to login.
+- Client-side guards restrict pages by Admin, Teacher, and Student role.
+- The backend remains responsible for final authorization and data ownership checks.
 
-Open the VS Code terminal inside the frontend folder:
+## Validation
 
-```powershell
-npm install
-```
+React Hook Form and Zod validate login, user administration, passwords, class/course data, subjects, Teacher mappings, institution settings, assignments, Student answers, and Teacher reviews.
 
-## 5. Start the backend first
-
-Open the ASP.NET Core solution in Visual Studio and run `AssignmentManagement.WebAPI`.
-
-Confirm Swagger opens at approximately:
-
-```text
-https://localhost:7081/swagger
-```
-
-If the browser shows a local certificate warning, open the Swagger URL and accept/trust the development certificate. You can also run:
-
-```powershell
-dotnet dev-certs https --trust
-```
-
-## 6. Start the frontend
-
-```powershell
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-The backend already allows `http://localhost:3000` in its CORS configuration.
-
-## Initial login
-
-```text
-Username: admin
-Password: Admin@123
-```
-
-Change the password after the first login.
-
-## Recommended first setup flow
-
-1. Login as Admin.
-2. Configure institution information.
-3. Create classes/courses.
-4. Create subjects.
-5. Create teacher accounts.
-6. Create student accounts and assign their class.
-7. Map teachers to a class and subject.
-8. Login as Teacher.
-9. Create and publish an assignment.
-10. Login as Student.
-11. Submit an answer.
-12. Login as Teacher and review the submission.
-13. Login as Student and view marks and feedback.
-
-## Project structure
-
-```text
-assignment-management-frontend
-├── app
-│   ├── login
-│   └── (protected)
-│       ├── admin
-│       ├── teacher
-│       ├── student
-│       ├── dashboard
-│       └── profile
-├── components
-│   ├── assignments
-│   ├── auth
-│   ├── common
-│   ├── layout
-│   ├── submissions
-│   └── ui
-├── lib
-│   ├── api.ts
-│   ├── auth-storage.ts
-│   ├── constants.ts
-│   ├── services.ts
-│   ├── types.ts
-│   └── utils.ts
-├── .env.example
-├── package.json
-└── README.md
-```
-
-## Authentication design
-
-- Access token and refresh token are stored in one local browser session object.
-- Axios adds the JWT access token automatically.
-- A `401 Unauthorized` response triggers refresh-token rotation.
-- Failed refresh clears the session and redirects to login.
-- Frontend role guards protect Admin, Teacher and Student routes.
-- Backend authorization remains the final security authority.
-
-## Form validation
-
-React Hook Form and Zod validate:
-
-- Login
-- User creation and update
-- Password reset/change
-- Class/course forms
-- Subject forms
-- Teacher mapping
-- Institution configuration
-- Application settings
-- Assignment creation/update
-- Student answer submission
-- Teacher review, marks and feedback
-
-## Production build
+## Production Build
 
 ```powershell
 npm run build
 npm run start
 ```
 
-## Common issues
+## Common Issues
 
-### `Failed to fetch`, network error or CORS error
+### Network or CORS error
 
-- Ensure the backend is running.
-- Check `.env.local`.
-- Confirm Swagger opens.
-- Restart `npm run dev` after changing `.env.local`.
+- Confirm the API is running and Swagger opens.
+- Check `NEXT_PUBLIC_API_BASE_URL` in `.env.local`.
+- Restart `npm run dev` after editing the environment file.
+- If the frontend uses another port, add that origin to backend `AllowedOrigins`.
 
-### HTTPS certificate error
+### Local HTTPS certificate error
 
 ```powershell
 dotnet dev-certs https --trust
 ```
 
-Then restart Visual Studio and the browser.
+Restart the backend and browser after trusting the certificate.
 
-### Port 3000 is busy
+### Port 3000 is occupied
 
 ```powershell
 npm run dev -- -p 3001
 ```
 
-If using port 3001, add `http://localhost:3001` to the backend `AllowedOrigins` array.
-
-### Login works in Swagger but not frontend
-
-Check browser Developer Tools → Network and confirm requests are going to the correct API base URL.
+Also add `http://localhost:3001` to backend `AllowedOrigins`.
