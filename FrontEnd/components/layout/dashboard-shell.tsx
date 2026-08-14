@@ -164,7 +164,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-h-[calc(100vh-5rem)] p-3 sm:p-5 lg:p-7">
+          <div className="page-frame">
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

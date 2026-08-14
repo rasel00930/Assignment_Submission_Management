@@ -1,23 +1,23 @@
 export type Role = "Admin" | "Teacher" | "Student";
 
 export enum InstitutionType {
-  School = 1,
-  College = 2,
+  School = "School",
+  College = "College",
 }
 
 export enum AssignmentStatus {
-  Draft = 1,
-  Published = 2,
-  Closed = 3,
+  Draft = "Draft",
+  Published = "Published",
+  Closed = "Closed",
 }
 
 export enum SubmissionStatus {
-  Submitted = 1,
-  Resubmitted = 2,
-  UnderReview = 3,
-  Graded = 4,
-  Returned = 5,
-  Late = 6,
+  Submitted = "Submitted",
+  Resubmitted = "Resubmitted",
+  UnderReview = "UnderReview",
+  Graded = "Graded",
+  Returned = "Returned",
+  Late = "Late",
 }
 
 export interface ApiResponse<T> {

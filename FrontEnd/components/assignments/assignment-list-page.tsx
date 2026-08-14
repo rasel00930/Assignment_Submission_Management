@@ -39,7 +39,7 @@ export function AssignmentListPage({ mode }: { mode: "admin" | "teacher" | "stud
         pageNumber: page,
         pageSize: mode === "student" ? 9 : defaultPageSize,
         search: search || undefined,
-        status: status ? Number(status) as AssignmentStatus : mode === "student" ? AssignmentStatus.Published : undefined,
+        status: status ? status as AssignmentStatus : mode === "student" ? AssignmentStatus.Published : undefined,
         academicClassId: classId ? Number(classId) : undefined,
         subjectId: subjectId ? Number(subjectId) : undefined,
       });
