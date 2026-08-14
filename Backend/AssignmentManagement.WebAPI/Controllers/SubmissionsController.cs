@@ -39,13 +39,53 @@ public sealed class SubmissionsController : ControllerBase
 
     [Authorize(Roles = AppRoles.Student)]
     [HttpPost("assignment/{assignmentId:long}")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
     public async Task<ActionResult<GeneralResponse<SubmissionResponse>>> Submit(
         long assignmentId,
-        SubmitAssignmentRequest request,
+        [FromForm] SubmitAssignmentRequest request,
+        IFormFile? file,
         CancellationToken cancellationToken)
     {
-        var result = await _submissionService.SubmitAsync(assignmentId, request, cancellationToken);
+        SubmissionResponse result;
+        if (file is null)
+        {
+            result = await _submissionService.SubmitAsync(
+                assignmentId,
+                request,
+                file: null,
+                cancellationToken);
+        }
+        else
+        {
+            await using var content = file.OpenReadStream();
+            var upload = new SubmissionFileUpload(
+                content,
+                file.FileName,
+                file.ContentType,
+                file.Length);
+            result = await _submissionService.SubmitAsync(
+                assignmentId,
+                request,
+                upload,
+                cancellationToken);
+        }
+
         return Ok(GeneralResponse<SubmissionResponse>.Ok(result, "Submission saved."));
+    }
+
+    [HttpGet("{id:long}/file")]
+    public async Task<IActionResult> DownloadFile(
+        long id,
+        [FromQuery] bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var file = await _submissionService.DownloadFileAsync(id, cancellationToken);
+        if (download)
+            return File(file.Content, file.ContentType, file.FileName, enableRangeProcessing: true);
+
+        Response.Headers.ContentDisposition = $"inline; filename=\"{Uri.EscapeDataString(file.FileName)}\"";
+        return File(file.Content, file.ContentType, enableRangeProcessing: true);
     }
 
     [Authorize(Roles = AppRoles.Teacher)]

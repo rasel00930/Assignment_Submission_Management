@@ -28,6 +28,7 @@ Responsive Next.js frontend for the role-based Assignment & Submission Managemen
 
 - Dashboard
 - Assignment creation and editing
+- Per-assignment answer-file upload toggle
 - Draft, publish, close, and delete actions
 - Submission review, marks, feedback, and status changes
 
@@ -36,6 +37,7 @@ Responsive Next.js frontend for the role-based Assignment & Submission Managemen
 - Dashboard and assigned work
 - Published assignment details and deadlines
 - Answer submission and permitted updates
+- Conditional JPG, JPEG, PNG, or PDF upload (maximum 10 MB)
 - Submission status, marks, and feedback
 
 ## Requirements

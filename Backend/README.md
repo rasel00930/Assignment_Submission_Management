@@ -50,6 +50,10 @@ The default development URLs are:
 
 The default allowed frontend origin is `http://localhost:3000`.
 
+Submission files are stored outside the public web root. By default the API uses
+`AssignmentManagement.WebAPI/App_Data/SubmissionFiles`; set `FileStorage:RootPath`
+to an absolute persistent-storage path when deploying the API.
+
 ### Email and password reset
 
 Account credentials and password-reset verification codes are sent through SMTP. Keep SMTP credentials out of `appsettings.json`; configure them with .NET User Secrets from `Backend/`:
@@ -143,6 +147,8 @@ Change these local demo passwords and the JWT key before any deployment.
 - `GET /api/submissions`
 - `GET /api/submissions/{id}`
 - `POST /api/submissions/assignment/{assignmentId}`
+- `GET /api/submissions/{id}/file` (inline view)
+- `GET /api/submissions/{id}/file?download=true`
 - `PUT /api/submissions/{id}/review`
 
 Swagger contains the complete request/response schema and JWT Bearer authorization control.
@@ -165,6 +171,8 @@ Swagger contains the complete request/response schema and JWT Bearer authorizati
 - Awarded marks cannot exceed maximum marks.
 - Returned submissions require feedback.
 - Assignments containing submissions cannot be deleted.
+- Teachers can enable answer-file upload per assignment. Accepted formats are JPG, JPEG, PNG, and PDF, with a 10 MB maximum.
+- Submission file endpoints enforce institution, ownership, and Teacher-assignment access before streaming a file.
 
 ## Tests
 

@@ -1,10 +1,18 @@
 using AssignmentManagement.Core.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace AssignmentManagement.Core.Models.Entities;
 
 public sealed class Submission : BaseEntity
 {
     public string AnswerText { get; set; } = null!;
+    [MaxLength(255)]
+    public string? FileName { get; set; }
+    [MaxLength(500)]
+    public string? StoredFilePath { get; set; }
+    [MaxLength(100)]
+    public string? FileContentType { get; set; }
+    public long? FileSize { get; set; }
     public DateTime SubmittedAtUtc { get; set; }
     public SubmissionStatus Status { get; set; }
     public decimal? Marks { get; set; }

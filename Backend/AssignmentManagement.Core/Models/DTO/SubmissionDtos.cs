@@ -13,8 +13,8 @@ public sealed class SubmissionQueryRequest : PagingRequest
 
 public sealed class SubmitAssignmentRequest
 {
-    [Required, MinLength(1)]
-    public string AnswerText { get; set; } = null!;
+    [MaxLength(20000)]
+    public string? AnswerText { get; set; }
 }
 
 public sealed class ReviewSubmissionRequest
@@ -38,6 +38,9 @@ public sealed record SubmissionResponse(
     string StudentName,
     string StudentUserName,
     string AnswerText,
+    string? FileName,
+    string? FileContentType,
+    long? FileSize,
     DateTime SubmittedAtUtc,
     SubmissionStatus Status,
     decimal? Marks,

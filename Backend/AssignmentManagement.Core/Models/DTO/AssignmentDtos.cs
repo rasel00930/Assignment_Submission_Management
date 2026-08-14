@@ -29,6 +29,7 @@ public sealed class CreateAssignmentRequest
     public long TeacherClassSubjectId { get; set; }
 
     public bool AllowResubmission { get; set; } = true;
+    public bool AllowFileUpload { get; set; }
     public bool PublishNow { get; set; }
 }
 
@@ -49,6 +50,7 @@ public sealed class UpdateAssignmentRequest
     public long TeacherClassSubjectId { get; set; }
 
     public bool AllowResubmission { get; set; } = true;
+    public bool AllowFileUpload { get; set; }
 }
 
 public sealed record AssignmentResponse(
@@ -59,6 +61,7 @@ public sealed record AssignmentResponse(
     decimal MaximumMarks,
     AssignmentStatus Status,
     bool AllowResubmission,
+    bool AllowFileUpload,
     long TeacherClassSubjectId,
     long AcademicClassId,
     string ClassName,

@@ -53,6 +53,15 @@ public static class DatabaseInitializer
             );
             CREATE INDEX IF NOT EXISTS "IX_PasswordResetCodes_UserId_CreatedAtUtc"
                 ON "PasswordResetCodes" ("UserId", "CreatedAtUtc");
+
+            ALTER TABLE "Assignments"
+                ADD COLUMN IF NOT EXISTS "AllowFileUpload" boolean NOT NULL DEFAULT false;
+
+            ALTER TABLE "Submissions"
+                ADD COLUMN IF NOT EXISTS "FileName" character varying(255),
+                ADD COLUMN IF NOT EXISTS "StoredFilePath" character varying(500),
+                ADD COLUMN IF NOT EXISTS "FileContentType" character varying(100),
+                ADD COLUMN IF NOT EXISTS "FileSize" bigint;
             """);
 
     private static async Task SeedRolesAsync(AssignmentDbContext dbContext)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,9 @@ import {
   Award,
   CalendarClock,
   CheckCircle2,
+  Download,
+  Eye,
+  FileUp,
   MessageSquare,
   RefreshCw,
   Save,
@@ -30,7 +33,7 @@ import { SubmissionStatus, type AssignmentResponse, type SubmissionResponse } fr
 import { deadlineState, errorMessage, formatDate } from "@/lib/utils";
 
 const schema = z.object({
-  answerText: z.string().trim().min(1, "Answer is required").max(20000),
+  answerText: z.string().max(20000),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -42,6 +45,9 @@ export default function StudentAssignmentDetail() {
   const [submission, setSubmission] = useState<SubmissionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileAction, setFileAction] = useState<"view" | "download" | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { answerText: "" },
@@ -77,13 +83,52 @@ export default function StudentAssignmentDetail() {
   };
 
   const save = async (values: FormValues) => {
+    if (!values.answerText.trim() && !selectedFile && !submission?.fileName) {
+      form.setError("answerText", { message: "Write an answer or attach a file" });
+      return;
+    }
+
     try {
-      const result = await submissionService.submit(assignmentId, values.answerText);
+      const result = await submissionService.submit(assignmentId, values.answerText, selectedFile);
       setSubmission(result);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       form.reset({ answerText: result.answerText });
       toast.success(submission ? "Submission updated" : "Assignment submitted");
     } catch (error) {
       toast.error(errorMessage(error));
+    }
+  };
+
+  const chooseFile = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    if (!/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+      toast.error("Only JPG, JPEG, PNG, and PDF files are allowed.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("The file cannot be larger than 10 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+    form.clearErrors("answerText");
+  };
+
+  const handleFileAction = async (action: "view" | "download") => {
+    if (!submission?.fileName) return;
+    setFileAction(action);
+    try {
+      if (action === "view") await submissionService.viewFile(submission.id);
+      else await submissionService.downloadFile(submission.id, submission.fileName);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setFileAction(null);
     }
   };
 
@@ -118,6 +163,9 @@ export default function StudentAssignmentDetail() {
               <Mini icon={CheckCircle2} label="Maximum marks" value={String(item.maximumMarks)} />
               <Mini icon={UserRound} label="Teacher" value={item.teacherName} />
             </div>
+            <div className={`mt-3 rounded-xl p-3 text-sm font-semibold ${item.allowFileUpload ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
+              {item.allowFileUpload ? "Answer file upload is allowed (JPG, JPEG, PNG, or PDF; maximum 10 MB)." : "This assignment does not accept answer file uploads."}
+            </div>
             <div className={`mt-5 rounded-xl p-4 text-sm font-semibold ${deadline.expired ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
               {deadline.expired ? "The deadline has passed." : `Deadline ${deadline.label}.`}
             </div>
@@ -148,7 +196,9 @@ export default function StudentAssignmentDetail() {
             {submission?.feedback && <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><p className="flex items-center gap-2 text-sm font-bold text-indigo-900"><MessageSquare className="h-4 w-4 text-indigo-600" /> Teacher feedback</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{submission.feedback}</p></div>}
 
             <form onSubmit={form.handleSubmit(save)} className="space-y-4">
-              <div><label className="field-label">Your answer</label><Textarea className="min-h-64" disabled={!canEdit} placeholder="Write your complete answer here..." {...form.register("answerText")} />{form.formState.errors.answerText && <p className="field-error">{form.formState.errors.answerText.message}</p>}</div>
+              <div><label className="field-label">Your answer</label><Textarea className="min-h-64" disabled={!canEdit} placeholder={item.allowFileUpload ? "Write your answer here, or attach an answer file below..." : "Write your complete answer here..."} {...form.register("answerText")} />{form.formState.errors.answerText && <p className="field-error">{form.formState.errors.answerText.message}</p>}</div>
+              {submission?.fileName && <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="flex items-center gap-2 text-sm font-bold text-indigo-900"><FileUp className="h-4 w-4" /> Submitted file</p><p className="mt-1 truncate text-sm text-slate-700">{submission.fileName}</p><p className="mt-1 text-xs text-slate-500">{formatFileSize(submission.fileSize)}</p></div><div className="flex gap-2"><Button type="button" variant="secondary" size="sm" loading={fileAction === "view"} onClick={() => void handleFileAction("view")}><Eye className="h-4 w-4" /> View</Button><Button type="button" variant="secondary" size="sm" loading={fileAction === "download"} onClick={() => void handleFileAction("download")}><Download className="h-4 w-4" /> Download</Button></div></div></div>}
+              {item.allowFileUpload && canEdit && <div><label className="field-label">{submission?.fileName ? "Replace answer file (optional)" : "Answer file (optional)"}</label><label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40"><FileUp className="h-7 w-7 text-indigo-500"/><span className="mt-2 text-sm font-bold text-slate-700">{selectedFile ? selectedFile.name : "Choose a JPG, JPEG, PNG, or PDF file"}</span><span className="mt-1 text-xs text-slate-500">Maximum file size: 10 MB</span><input ref={fileInputRef} type="file" className="sr-only" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label>{selectedFile && <button type="button" className="mt-2 text-xs font-bold text-rose-600" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>Remove selected file</button>}</div>}
               {canEdit ? <Button type="submit" className="w-full" loading={form.formState.isSubmitting}>{submission ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}{submission ? "Update submission" : "Submit assignment"}</Button> : <p className="rounded-xl bg-slate-100 p-3 text-center text-sm font-semibold text-slate-600">{graded ? "This submission has been graded and can no longer be edited." : "This submission can no longer be edited."}</p>}
             </form>
           </CardContent>
@@ -160,4 +210,9 @@ export default function StudentAssignmentDetail() {
 
 function Mini({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><Icon className="h-4 w-4 text-indigo-600" /><p className="mt-2 text-xs font-semibold text-slate-500">{label}</p><p className="mt-1 text-sm font-bold text-slate-800">{value}</p></div>;
+}
+
+function formatFileSize(bytes?: number | null) {
+  if (bytes == null) return "";
+  return bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

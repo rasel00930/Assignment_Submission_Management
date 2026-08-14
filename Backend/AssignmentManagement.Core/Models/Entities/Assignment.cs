@@ -14,6 +14,7 @@ public sealed class Assignment : BaseEntity
     public decimal MaximumMarks { get; set; }
     public AssignmentStatus Status { get; set; } = AssignmentStatus.Draft;
     public bool AllowResubmission { get; set; } = true;
+    public bool AllowFileUpload { get; set; }
 
     public long InstitutionId { get; set; }
     public Institution Institution { get; set; } = null!;

@@ -15,15 +15,18 @@ public sealed class SubmissionService : ISubmissionService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly ISubmissionFileStorage _fileStorage;
 
     public SubmissionService(
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        ISubmissionFileStorage fileStorage)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _dateTimeProvider = dateTimeProvider;
+        _fileStorage = fileStorage;
     }
 
     public async Task<PagedResponse<SubmissionResponse>> GetAsync(
@@ -76,6 +79,9 @@ public sealed class SubmissionService : ISubmissionService
                 x.Student.FullName,
                 x.Student.UserName,
                 x.AnswerText,
+                x.FileName,
+                x.FileContentType,
+                x.FileSize,
                 x.SubmittedAtUtc,
                 x.Status,
                 x.Marks,
@@ -121,6 +127,7 @@ public sealed class SubmissionService : ISubmissionService
     public async Task<SubmissionResponse> SubmitAsync(
         long assignmentId,
         SubmitAssignmentRequest request,
+        SubmissionFileUpload? file,
         CancellationToken cancellationToken = default)
     {
         if (!_currentUser.AcademicClassId.HasValue)
@@ -142,6 +149,9 @@ public sealed class SubmissionService : ISubmissionService
         if (assignment.TeacherClassSubject.AcademicClassId != _currentUser.AcademicClassId.Value)
             throw new AppException(403, "This assignment is not assigned to your class/course.");
 
+        if (file is not null && !assignment.AllowFileUpload)
+            throw new AppException(409, "File upload is not allowed for this assignment.");
+
         var allowLateSubmission = await GetBooleanSettingAsync(
             "AllowLateSubmission",
             defaultValue: false,
@@ -156,48 +166,105 @@ public sealed class SubmissionService : ISubmissionService
             trackChanges: true,
             cancellationToken: cancellationToken);
 
-        if (existing is null)
-        {
-            var status = SubmissionRules.GetInitialStatus(
-                assignment.DeadlineUtc,
-                _dateTimeProvider.UtcNow,
-                allowLateSubmission);
+        var answerText = request.AnswerText?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(answerText) && file is null && existing?.StoredFilePath is null)
+            throw new AppException(400, "Write an answer or attach a file before submitting.");
 
-            existing = new Submission
+        StoredSubmissionFile? storedFile = null;
+        if (file is not null)
+        {
+            storedFile = await _fileStorage.SaveAsync(
+                file,
+                _currentUser.InstitutionId,
+                assignment.Id,
+                cancellationToken);
+        }
+
+        var previousStoredFilePath = existing?.StoredFilePath;
+
+        try
+        {
+            if (existing is null)
             {
-                AnswerText = request.AnswerText.Trim(),
-                SubmittedAtUtc = _dateTimeProvider.UtcNow,
-                Status = status,
-                InstitutionId = _currentUser.InstitutionId,
-                AssignmentId = assignment.Id,
-                StudentId = _currentUser.UserId,
-                CreatedAtUtc = _dateTimeProvider.UtcNow,
-                CreatedByUserId = _currentUser.UserId
-            };
-            await _unitOfWork.Submissions.AddAsync(existing, cancellationToken);
+                var status = SubmissionRules.GetInitialStatus(
+                    assignment.DeadlineUtc,
+                    _dateTimeProvider.UtcNow,
+                    allowLateSubmission);
+
+                existing = new Submission
+                {
+                    AnswerText = answerText,
+                    SubmittedAtUtc = _dateTimeProvider.UtcNow,
+                    Status = status,
+                    InstitutionId = _currentUser.InstitutionId,
+                    AssignmentId = assignment.Id,
+                    StudentId = _currentUser.UserId,
+                    CreatedAtUtc = _dateTimeProvider.UtcNow,
+                    CreatedByUserId = _currentUser.UserId
+                };
+                ApplyFile(existing, storedFile);
+                await _unitOfWork.Submissions.AddAsync(existing, cancellationToken);
+            }
+            else
+            {
+                SubmissionRules.ValidateResubmission(
+                    assignment.AllowResubmission,
+                    allowStudentSubmissionUpdate,
+                    assignment.DeadlineUtc,
+                    _dateTimeProvider.UtcNow,
+                    existing.Status);
+
+                existing.AnswerText = answerText;
+                existing.SubmittedAtUtc = _dateTimeProvider.UtcNow;
+                existing.Status = SubmissionStatus.Resubmitted;
+                existing.Marks = null;
+                existing.Feedback = null;
+                existing.ReviewedAtUtc = null;
+                existing.ReviewedByTeacherId = null;
+                existing.UpdatedAtUtc = _dateTimeProvider.UtcNow;
+                existing.UpdatedByUserId = _currentUser.UserId;
+                if (storedFile is not null)
+                    ApplyFile(existing, storedFile);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
-        else
+        catch
         {
-            SubmissionRules.ValidateResubmission(
-                assignment.AllowResubmission,
-                allowStudentSubmissionUpdate,
-                assignment.DeadlineUtc,
-                _dateTimeProvider.UtcNow,
-                existing.Status);
-
-            existing.AnswerText = request.AnswerText.Trim();
-            existing.SubmittedAtUtc = _dateTimeProvider.UtcNow;
-            existing.Status = SubmissionStatus.Resubmitted;
-            existing.Marks = null;
-            existing.Feedback = null;
-            existing.ReviewedAtUtc = null;
-            existing.ReviewedByTeacherId = null;
-            existing.UpdatedAtUtc = _dateTimeProvider.UtcNow;
-            existing.UpdatedByUserId = _currentUser.UserId;
+            if (storedFile is not null)
+                await _fileStorage.DeleteAsync(storedFile.StoredFilePath, CancellationToken.None);
+            throw;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        if (storedFile is not null && previousStoredFilePath is not null)
+            await _fileStorage.DeleteAsync(previousStoredFilePath, CancellationToken.None);
+
         return await GetByIdAsync(existing.Id, cancellationToken);
+    }
+
+    public async Task<SubmissionFileDownload> DownloadFileAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var submission = await ApplyCurrentUserAccess(_unitOfWork.Submissions.Table.AsNoTracking())
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                x.FileName,
+                x.StoredFilePath,
+                x.FileContentType
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new AppException(404, "Submission was not found or you do not have access to it.");
+
+        if (string.IsNullOrWhiteSpace(submission.StoredFilePath) || string.IsNullOrWhiteSpace(submission.FileName))
+            throw new AppException(404, "This submission does not have an attached file.");
+
+        var stream = await _fileStorage.OpenReadAsync(submission.StoredFilePath, cancellationToken);
+        return new SubmissionFileDownload(
+            stream,
+            submission.FileName,
+            submission.FileContentType ?? "application/octet-stream");
     }
 
     public async Task<SubmissionResponse> ReviewAsync(
@@ -274,6 +341,9 @@ public sealed class SubmissionService : ISubmissionService
             x.Student.FullName,
             x.Student.UserName,
             x.AnswerText,
+            x.FileName,
+            x.FileContentType,
+            x.FileSize,
             x.SubmittedAtUtc,
             x.Status,
             x.Marks,
@@ -282,5 +352,16 @@ public sealed class SubmissionService : ISubmissionService
             x.ReviewedByTeacherId.HasValue
                 ? x.ReviewedByTeacher!.FullName
                 : null));
+    }
+
+    private static void ApplyFile(Submission submission, StoredSubmissionFile? file)
+    {
+        if (file is null)
+            return;
+
+        submission.FileName = file.FileName;
+        submission.StoredFilePath = file.StoredFilePath;
+        submission.FileContentType = file.ContentType;
+        submission.FileSize = file.FileSize;
     }
 }

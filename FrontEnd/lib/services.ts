@@ -143,8 +143,49 @@ export const submissionService = {
   async getById(id: number) {
     return data(await api.get<ApiResponse<SubmissionResponse>>(`/api/submissions/${id}`));
   },
-  async submit(assignmentId: number, answerText: string) {
-    return data(await api.post<ApiResponse<SubmissionResponse>>(`/api/submissions/assignment/${assignmentId}`, { answerText }));
+  async submit(assignmentId: number, answerText: string, file?: File | null) {
+    const formData = new FormData();
+    formData.append("answerText", answerText);
+    if (file) formData.append("file", file);
+    return data(await api.post<ApiResponse<SubmissionResponse>>(
+      `/api/submissions/assignment/${assignmentId}`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    ));
+  },
+  async viewFile(id: number) {
+    const previewWindow = window.open("about:blank", "_blank");
+    if (previewWindow) previewWindow.opener = null;
+    try {
+      const response = await api.get<Blob>(`/api/submissions/${id}/file`, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      if (previewWindow) previewWindow.location.href = url;
+      else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      previewWindow?.close();
+      throw error;
+    }
+  },
+  async downloadFile(id: number, fileName: string) {
+    const response = await api.get<Blob>(`/api/submissions/${id}/file`, {
+      params: { download: true },
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   },
   async review(id: number, payload: { marks?: number | null; feedback?: string | null; status: SubmissionStatus }) {
     return data(await api.put<ApiResponse<SubmissionResponse>>(`/api/submissions/${id}/review`, payload));

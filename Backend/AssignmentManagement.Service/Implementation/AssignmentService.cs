@@ -108,6 +108,7 @@ public sealed class AssignmentService : IAssignmentService
             MaximumMarks = request.MaximumMarks,
             Status = request.PublishNow ? AssignmentStatus.Published : AssignmentStatus.Draft,
             AllowResubmission = request.AllowResubmission,
+            AllowFileUpload = request.AllowFileUpload,
             InstitutionId = _currentUser.InstitutionId,
             TeacherClassSubjectId = mapping.Id,
             CreatedByTeacherId = _currentUser.UserId,
@@ -153,6 +154,7 @@ public sealed class AssignmentService : IAssignmentService
         entity.MaximumMarks = request.MaximumMarks;
         entity.TeacherClassSubjectId = mapping.Id;
         entity.AllowResubmission = request.AllowResubmission;
+        entity.AllowFileUpload = request.AllowFileUpload;
         entity.UpdatedAtUtc = _dateTimeProvider.UtcNow;
         entity.UpdatedByUserId = _currentUser.UserId;
 
@@ -267,6 +269,7 @@ public sealed class AssignmentService : IAssignmentService
             x.MaximumMarks,
             x.Status,
             x.AllowResubmission,
+            x.AllowFileUpload,
             x.TeacherClassSubjectId,
             x.TeacherClassSubject.AcademicClassId,
             x.TeacherClassSubject.AcademicClass.Name,

@@ -15,6 +15,7 @@ public static class ServiceDI
         IConfiguration configuration)
     {
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.AddHttpContextAccessor();
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
@@ -25,6 +26,7 @@ public static class ServiceDI
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddSingleton<ISubmissionFileStorage, SubmissionFileStorage>();
         return services;
     }
 }

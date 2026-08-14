@@ -94,9 +94,41 @@ public interface ISubmissionService
     Task<SubmissionResponse> SubmitAsync(
         long assignmentId,
         SubmitAssignmentRequest request,
+        SubmissionFileUpload? file,
+        CancellationToken cancellationToken = default);
+    Task<SubmissionFileDownload> DownloadFileAsync(
+        long id,
         CancellationToken cancellationToken = default);
     Task<SubmissionResponse> ReviewAsync(
         long id,
         ReviewSubmissionRequest request,
         CancellationToken cancellationToken = default);
+}
+
+public sealed record SubmissionFileUpload(
+    Stream Content,
+    string FileName,
+    string ContentType,
+    long Length);
+
+public sealed record SubmissionFileDownload(
+    Stream Content,
+    string FileName,
+    string ContentType);
+
+public sealed record StoredSubmissionFile(
+    string FileName,
+    string StoredFilePath,
+    string ContentType,
+    long FileSize);
+
+public interface ISubmissionFileStorage
+{
+    Task<StoredSubmissionFile> SaveAsync(
+        SubmissionFileUpload file,
+        long institutionId,
+        long assignmentId,
+        CancellationToken cancellationToken = default);
+    Task<Stream> OpenReadAsync(string storedFilePath, CancellationToken cancellationToken = default);
+    Task DeleteAsync(string? storedFilePath, CancellationToken cancellationToken = default);
 }

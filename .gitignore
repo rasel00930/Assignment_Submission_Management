@@ -3,6 +3,7 @@ bin/
 obj/
 TestResults/
 logs/
+App_Data/
 *.user
 *.suo
 appsettings.Production.json

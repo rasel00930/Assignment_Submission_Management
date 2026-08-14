@@ -121,6 +121,7 @@ export interface AssignmentResponse {
   maximumMarks: number;
   status: AssignmentStatus;
   allowResubmission: boolean;
+  allowFileUpload: boolean;
   teacherClassSubjectId: number;
   academicClassId: number;
   className: string;
@@ -142,6 +143,9 @@ export interface SubmissionResponse {
   studentName: string;
   studentUserName: string;
   answerText: string;
+  fileName?: string | null;
+  fileContentType?: string | null;
+  fileSize?: number | null;
   submittedAtUtc: string;
   status: SubmissionStatus;
   marks?: number | null;
