@@ -12,4 +12,7 @@ export default function DashboardRedirectPage() {
     if (userRole) router.replace(`/${userRole.toLowerCase()}`);
   }, [router, userRole]);
   return <InlineLoader label="Preparing your dashboard..." />;
+
+
+  
 }
