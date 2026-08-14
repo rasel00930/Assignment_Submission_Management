@@ -5,7 +5,6 @@ import Link from "next/link";
 import { BookOpenCheck, ClipboardCheck, FileText, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { RolePage } from "@/components/auth/role-page";
-import { DashboardWelcome } from "@/components/common/dashboard-welcome";
 import { AssignmentStatusBadge } from "@/components/common/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -39,7 +38,6 @@ export default function TeacherDashboardPage() {
 
   return (
     <RolePage role="Teacher">
-      <DashboardWelcome message="Create meaningful assignments, monitor student progress and provide timely feedback." />
       {loading ? <InlineLoader label="Loading dashboard..." /> : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">

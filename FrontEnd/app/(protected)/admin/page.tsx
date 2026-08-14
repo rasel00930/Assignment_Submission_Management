@@ -5,7 +5,6 @@ import Link from "next/link";
 import { BookOpenCheck, ClipboardCheck, FileText, School, Users } from "lucide-react";
 import { toast } from "sonner";
 import { RolePage } from "@/components/auth/role-page";
-import { DashboardWelcome } from "@/components/common/dashboard-welcome";
 import { AssignmentStatusBadge, SubmissionStatusBadge } from "@/components/common/status-badges";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InlineLoader } from "@/components/ui/loading";
@@ -57,7 +56,6 @@ export default function AdminDashboardPage() {
 
   return (
     <RolePage role="Admin">
-      <DashboardWelcome message="Configure your institution, manage users and oversee every assignment and submission." />
       {!state ? <InlineLoader label="Loading dashboard..." /> : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

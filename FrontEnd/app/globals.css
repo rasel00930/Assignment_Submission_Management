@@ -30,6 +30,54 @@ body {
   background: rgba(79, 70, 229, 0.18);
 }
 
+@keyframes loader-bar-rise {
+  0%, 100% {
+    transform: scaleY(0.45);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loader-progress-slide {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(360%);
+  }
+}
+
+.loader-bar {
+  animation: loader-bar-rise 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.loader-bar:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.loader-bar:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.loader-bar:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+.loader-progress {
+  animation: loader-progress-slide 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-bar,
+  .loader-progress {
+    animation: none;
+  }
+}
+
 @layer components {
   .surface {
     @apply rounded-2xl border border-slate-200/80 bg-white shadow-soft;

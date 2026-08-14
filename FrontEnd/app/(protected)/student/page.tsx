@@ -6,7 +6,6 @@ import { Award, ClipboardCheck, Clock3, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { RolePage } from "@/components/auth/role-page";
 import { AssignmentCard } from "@/components/common/assignment-card";
-import { DashboardWelcome } from "@/components/common/dashboard-welcome";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InlineLoader } from "@/components/ui/loading";
 import { StatCard } from "@/components/ui/stat-card";
@@ -42,7 +41,6 @@ export default function StudentDashboardPage() {
 
   return (
     <RolePage role="Student">
-      <DashboardWelcome message="Stay on top of deadlines, submit your work and review teacher feedback." />
       {loading ? <InlineLoader label="Loading dashboard..." /> : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
