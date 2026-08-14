@@ -10,6 +10,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FullPageLoader } from "@/components/ui/loading";
 import { useAuth } from "@/components/auth/auth-provider";
 import { errorMessage } from "@/lib/utils";
 
@@ -23,25 +24,37 @@ export default function LoginPage() {
   const { login, session, ready } = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { userName: "", password: "" },
   });
 
   useEffect(() => {
-    if (ready && session) router.replace("/dashboard");
-  }, [ready, router, session]);
+    if (ready && session && !redirecting) {
+      setRedirecting(true);
+      const role = session.user.roles[0];
+      router.replace(role ? `/${role.toLowerCase()}` : "/dashboard");
+    }
+  }, [ready, redirecting, router, session]);
 
   const submit = async (values: FormValues) => {
     try {
       const result = await login(values.userName, values.password);
+      setRedirecting(true);
       toast.success(`Welcome back, ${result.user.fullName}`);
       const returnUrl = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("returnUrl") : null;
-      router.replace(returnUrl || "/dashboard");
+      const safeReturnUrl = returnUrl?.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : null;
+      const role = result.user.roles[0];
+      router.replace(safeReturnUrl || (role ? `/${role.toLowerCase()}` : "/dashboard"));
     } catch (error) {
       toast.error(errorMessage(error));
     }
   };
+
+  if (redirecting || (ready && session)) {
+    return <FullPageLoader label="Login successful. Opening your dashboard..." />;
+  }
 
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.05fr_.95fr]">
