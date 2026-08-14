@@ -35,4 +35,12 @@ public sealed class SettingsController : ControllerBase
         var result = await _adminService.UpsertSettingAsync(request, cancellationToken);
         return Ok(GeneralResponse<SettingResponse>.Ok(result, "Setting saved."));
     }
+
+    [HttpGet("catalog")]
+    public async Task<ActionResult<GeneralResponse<IReadOnlyCollection<SettingCatalogResponse>>>> GetCatalog(
+        CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetSettingCatalogAsync(cancellationToken);
+        return Ok(GeneralResponse<IReadOnlyCollection<SettingCatalogResponse>>.Ok(result));
+    }
 }

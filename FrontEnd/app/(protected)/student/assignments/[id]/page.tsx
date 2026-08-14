@@ -29,7 +29,7 @@ import { InlineLoader } from "@/components/ui/loading";
 import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import { assignmentService, submissionService } from "@/lib/services";
-import { SubmissionStatus, type AssignmentResponse, type SubmissionResponse } from "@/lib/types";
+import { AssignmentStatus, SubmissionStatus, type AssignmentResponse, type SubmissionResponse } from "@/lib/types";
 import { deadlineState, errorMessage, formatDate } from "@/lib/utils";
 
 const schema = z.object({
@@ -137,7 +137,20 @@ export default function StudentAssignmentDetail() {
 
   const deadline = deadlineState(item.deadlineUtc);
   const graded = submission?.status === SubmissionStatus.Graded;
-  const canEdit = !deadline.expired && !graded && (!submission || item.allowResubmission);
+  const published = item.status === AssignmentStatus.Published;
+  const canSubmitFirst = published && !submission && (!deadline.expired || item.lateSubmissionEnabled);
+  const canResubmit = published && !!submission && !deadline.expired && !graded && item.resubmissionEnabled;
+  const canEdit = canSubmitFirst || canResubmit;
+  const isLateFirstSubmission = canSubmitFirst && deadline.expired;
+  const blockedMessage = !published
+    ? "This assignment is closed and no longer accepts submissions."
+    : graded
+      ? "This submission has been graded and can no longer be edited."
+      : submission && deadline.expired
+        ? "The deadline has passed. Existing submissions cannot be updated after the deadline."
+        : submission && !item.resubmissionEnabled
+          ? "Resubmission is disabled by the assignment or institution policy."
+          : "The deadline has passed and late submission is not enabled for this assignment.";
   const percentage = submission?.marks != null && submission.assignmentMaximumMarks > 0
     ? Math.round((submission.marks / submission.assignmentMaximumMarks) * 100)
     : null;
@@ -163,11 +176,26 @@ export default function StudentAssignmentDetail() {
               <Mini icon={CheckCircle2} label="Maximum marks" value={String(item.maximumMarks)} />
               <Mini icon={UserRound} label="Teacher" value={item.teacherName} />
             </div>
-            <div className={`mt-3 rounded-xl p-3 text-sm font-semibold ${item.allowFileUpload ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
-              {item.allowFileUpload ? "Answer file upload is allowed (JPG, JPEG, PNG, or PDF; maximum 10 MB)." : "This assignment does not accept answer file uploads."}
+            <div className={`mt-3 rounded-xl p-3 text-sm font-semibold ${item.fileUploadEnabled ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
+              {item.fileUploadEnabled ? "Answer file upload is allowed (JPG, JPEG, PNG, or PDF; maximum 10 MB)." : "This assignment does not accept answer file uploads."}
             </div>
-            <div className={`mt-5 rounded-xl p-4 text-sm font-semibold ${deadline.expired ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
-              {deadline.expired ? "The deadline has passed." : `Deadline ${deadline.label}.`}
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className={`rounded-xl p-3 text-sm font-semibold ${item.resubmissionEnabled ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-600"}`}>
+                {item.resubmissionEnabled ? "You may update your submission before the deadline." : "Resubmission is disabled for this assignment."}
+              </div>
+              <div className={`rounded-xl p-3 text-sm font-semibold ${item.lateSubmissionEnabled ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                {item.lateSubmissionEnabled ? "One late first submission is allowed after the deadline." : "Late submission is disabled for this assignment."}
+              </div>
+              <div className={`rounded-xl p-3 text-sm font-semibold ${item.gradesVisibleImmediately ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                {item.gradesVisibleImmediately ? "Graded results are visible immediately." : "Graded results become visible after the assignment is closed."}
+              </div>
+            </div>
+            <div className={`mt-5 rounded-xl p-4 text-sm font-semibold ${deadline.expired ? item.lateSubmissionEnabled && !submission ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+              {deadline.expired
+                ? item.lateSubmissionEnabled && !submission
+                  ? "The deadline has passed, but this assignment allows one late first submission."
+                  : "The deadline has passed."
+                : `Deadline ${deadline.label}.`}
             </div>
           </CardContent>
         </Card>
@@ -196,10 +224,10 @@ export default function StudentAssignmentDetail() {
             {submission?.feedback && <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><p className="flex items-center gap-2 text-sm font-bold text-indigo-900"><MessageSquare className="h-4 w-4 text-indigo-600" /> Teacher feedback</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{submission.feedback}</p></div>}
 
             <form onSubmit={form.handleSubmit(save)} className="space-y-4">
-              <div><label className="field-label">Your answer</label><Textarea className="min-h-64" disabled={!canEdit} placeholder={item.allowFileUpload ? "Write your answer here, or attach an answer file below..." : "Write your complete answer here..."} {...form.register("answerText")} />{form.formState.errors.answerText && <p className="field-error">{form.formState.errors.answerText.message}</p>}</div>
+              <div><label className="field-label">Your answer</label><Textarea className="min-h-64" disabled={!canEdit} placeholder={item.fileUploadEnabled ? "Write your answer here, or attach an answer file below..." : "Write your complete answer here..."} {...form.register("answerText")} />{form.formState.errors.answerText && <p className="field-error">{form.formState.errors.answerText.message}</p>}</div>
               {submission?.fileName && <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="flex items-center gap-2 text-sm font-bold text-indigo-900"><FileUp className="h-4 w-4" /> Submitted file</p><p className="mt-1 truncate text-sm text-slate-700">{submission.fileName}</p><p className="mt-1 text-xs text-slate-500">{formatFileSize(submission.fileSize)}</p></div><div className="flex gap-2"><Button type="button" variant="secondary" size="sm" loading={fileAction === "view"} onClick={() => void handleFileAction("view")}><Eye className="h-4 w-4" /> View</Button><Button type="button" variant="secondary" size="sm" loading={fileAction === "download"} onClick={() => void handleFileAction("download")}><Download className="h-4 w-4" /> Download</Button></div></div></div>}
-              {item.allowFileUpload && canEdit && <div><label className="field-label">{submission?.fileName ? "Replace answer file (optional)" : "Answer file (optional)"}</label><label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40"><FileUp className="h-7 w-7 text-indigo-500"/><span className="mt-2 text-sm font-bold text-slate-700">{selectedFile ? selectedFile.name : "Choose a JPG, JPEG, PNG, or PDF file"}</span><span className="mt-1 text-xs text-slate-500">Maximum file size: 10 MB</span><input ref={fileInputRef} type="file" className="sr-only" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label>{selectedFile && <button type="button" className="mt-2 text-xs font-bold text-rose-600" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>Remove selected file</button>}</div>}
-              {canEdit ? <Button type="submit" className="w-full" loading={form.formState.isSubmitting}>{submission ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}{submission ? "Update submission" : "Submit assignment"}</Button> : <p className="rounded-xl bg-slate-100 p-3 text-center text-sm font-semibold text-slate-600">{graded ? "This submission has been graded and can no longer be edited." : "This submission can no longer be edited."}</p>}
+              {item.fileUploadEnabled && canEdit && <div><label className="field-label">{submission?.fileName ? "Replace answer file (optional)" : "Answer file (optional)"}</label><label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40"><FileUp className="h-7 w-7 text-indigo-500"/><span className="mt-2 text-sm font-bold text-slate-700">{selectedFile ? selectedFile.name : "Choose a JPG, JPEG, PNG, or PDF file"}</span><span className="mt-1 text-xs text-slate-500">Maximum file size: 10 MB</span><input ref={fileInputRef} type="file" className="sr-only" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label>{selectedFile && <button type="button" className="mt-2 text-xs font-bold text-rose-600" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>Remove selected file</button>}</div>}
+              {canEdit ? <Button type="submit" className="w-full" loading={form.formState.isSubmitting}>{submission ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}{submission ? "Update submission" : isLateFirstSubmission ? "Submit late" : "Submit assignment"}</Button> : <p className="rounded-xl bg-slate-100 p-3 text-center text-sm font-semibold text-slate-600">{blockedMessage}</p>}
             </form>
           </CardContent>
         </Card>

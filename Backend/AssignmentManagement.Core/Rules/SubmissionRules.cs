@@ -5,6 +5,11 @@ namespace AssignmentManagement.Core.Rules;
 
 public static class SubmissionRules
 {
+    public static bool IsLateSubmissionAllowed(
+        bool institutionAllowsLateSubmission,
+        bool assignmentAllowsLateSubmission) =>
+        institutionAllowsLateSubmission && assignmentAllowsLateSubmission;
+
     public static SubmissionStatus GetInitialStatus(DateTime deadlineUtc, DateTime nowUtc, bool allowLateSubmission)
     {
         if (nowUtc <= deadlineUtc)
@@ -33,7 +38,12 @@ public static class SubmissionRules
             throw new AppException(409, "A graded submission cannot be updated.");
     }
 
-    public static void ValidateReview(decimal? marks, decimal maximumMarks, string? feedback, SubmissionStatus status)
+    public static void ValidateReview(
+        decimal? marks,
+        decimal maximumMarks,
+        string? feedback,
+        SubmissionStatus status,
+        bool requireFeedbackForGrading)
     {
         var allowed = status is SubmissionStatus.UnderReview or SubmissionStatus.Graded or SubmissionStatus.Returned;
         if (!allowed)
@@ -45,7 +55,10 @@ public static class SubmissionRules
         if (marks.HasValue && (marks.Value < 0 || marks.Value > maximumMarks))
             throw new AppException(400, $"Marks must be between 0 and {maximumMarks}.");
 
-        if (status is SubmissionStatus.Graded or SubmissionStatus.Returned && string.IsNullOrWhiteSpace(feedback))
-            throw new AppException(400, "Feedback is required when a submission is graded or returned.");
+        if (status == SubmissionStatus.Returned && string.IsNullOrWhiteSpace(feedback))
+            throw new AppException(400, "Feedback is required when a submission is returned.");
+
+        if (status == SubmissionStatus.Graded && requireFeedbackForGrading && string.IsNullOrWhiteSpace(feedback))
+            throw new AppException(400, "Feedback is required when a submission is graded.");
     }
 }

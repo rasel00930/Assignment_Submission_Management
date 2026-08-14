@@ -34,6 +34,7 @@ public sealed record SubmissionResponse(
     long AssignmentId,
     string AssignmentTitle,
     decimal AssignmentMaximumMarks,
+    bool FeedbackRequiredForGrading,
     long StudentId,
     string StudentName,
     string StudentUserName,

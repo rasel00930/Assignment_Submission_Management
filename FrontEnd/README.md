@@ -21,7 +21,7 @@ Responsive Next.js frontend for the role-based Assignment & Submission Managemen
 - User creation, update, activation/deactivation, and password reset
 - Class/course and subject management
 - Teacher-Class-Subject mapping
-- Institution and application settings
+- Dynamic backend policy catalogue with createable suggestions and conditionally available assignment-level controls
 - All assignments and submissions
 
 ### Teacher

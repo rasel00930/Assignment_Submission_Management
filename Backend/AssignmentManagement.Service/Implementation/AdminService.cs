@@ -600,16 +600,57 @@ public sealed class AdminService : IAdminService
         CancellationToken cancellationToken = default) =>
         await _unitOfWork.Settings.Table
             .AsNoTracking()
-            .Where(x => x.InstitutionId == _currentUser.InstitutionId && x.IsActive)
+            .Where(x =>
+                x.InstitutionId == _currentUser.InstitutionId &&
+                x.IsActive &&
+                ApplicationSettingKeys.Supported.Contains(x.Key))
             .OrderBy(x => x.Key)
             .Select(x => new SettingResponse(x.Id, x.Key, x.Value, x.Description))
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyCollection<SettingCatalogResponse>> GetSettingCatalogAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var configured = await _unitOfWork.Settings.Table
+            .AsNoTracking()
+            .Where(x =>
+                x.InstitutionId == _currentUser.InstitutionId &&
+                x.IsActive &&
+                ApplicationSettingKeys.Supported.Contains(x.Key))
+            .Select(x => new { x.Key, x.Value })
+            .ToListAsync(cancellationToken);
+
+        return ApplicationSettingCatalog.Definitions
+            .Select(definition =>
+            {
+                var setting = configured.FirstOrDefault(x => x.Key == definition.Key);
+                var enabled = setting is null
+                    ? definition.DefaultValue
+                    : bool.TryParse(setting.Value, out var parsed) && parsed;
+                return new SettingCatalogResponse(
+                    definition.Key,
+                    definition.Title,
+                    definition.Description,
+                    definition.Alignment,
+                    definition.DefaultValue,
+                    setting is not null,
+                    enabled);
+            })
+            .ToArray();
+    }
 
     public async Task<SettingResponse> UpsertSettingAsync(
         SettingRequest request,
         CancellationToken cancellationToken = default)
     {
         var key = request.Key.Trim();
+        if (!ApplicationSettingKeys.Supported.Contains(key, StringComparer.Ordinal))
+            throw new AppException(400, $"Unsupported application setting: {key}.");
+
+        if (!bool.TryParse(request.Value.Trim(), out var booleanValue))
+            throw new AppException(400, "Supported application settings require a true or false value.");
+
+        var normalizedValue = booleanValue ? "true" : "false";
         var entity = await _unitOfWork.Settings.FirstOrDefaultAsync(
             x => x.InstitutionId == _currentUser.InstitutionId && x.Key == key,
             trackChanges: true,
@@ -621,7 +662,7 @@ public sealed class AdminService : IAdminService
             {
                 InstitutionId = _currentUser.InstitutionId,
                 Key = key,
-                Value = request.Value.Trim(),
+                Value = normalizedValue,
                 Description = request.Description?.Trim(),
                 CreatedAtUtc = _dateTimeProvider.UtcNow,
                 CreatedByUserId = _currentUser.UserId
@@ -630,7 +671,7 @@ public sealed class AdminService : IAdminService
         }
         else
         {
-            entity.Value = request.Value.Trim();
+            entity.Value = normalizedValue;
             entity.Description = request.Description?.Trim();
             entity.IsActive = true;
             entity.UpdatedAtUtc = _dateTimeProvider.UtcNow;

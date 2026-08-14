@@ -55,7 +55,10 @@ public static class DatabaseInitializer
                 ON "PasswordResetCodes" ("UserId", "CreatedAtUtc");
 
             ALTER TABLE "Assignments"
-                ADD COLUMN IF NOT EXISTS "AllowFileUpload" boolean NOT NULL DEFAULT false;
+                ADD COLUMN IF NOT EXISTS "AllowFileUpload" boolean NOT NULL DEFAULT false,
+                ADD COLUMN IF NOT EXISTS "AllowLateSubmission" boolean NOT NULL DEFAULT false,
+                ADD COLUMN IF NOT EXISTS "RequireFeedbackForGrading" boolean NOT NULL DEFAULT false,
+                ADD COLUMN IF NOT EXISTS "ShowGradesImmediately" boolean NOT NULL DEFAULT false;
 
             ALTER TABLE "Submissions"
                 ADD COLUMN IF NOT EXISTS "FileName" character varying(255),
@@ -104,23 +107,15 @@ public static class DatabaseInitializer
 
     private static async Task SeedSettingsAsync(AssignmentDbContext dbContext, long institutionId)
     {
-        var settings = new[]
-        {
-            new ApplicationSetting
+        var settings = ApplicationSettingCatalog.Definitions
+            .Where(x => x.SeedByDefault)
+            .Select(x => new ApplicationSetting
             {
                 InstitutionId = institutionId,
-                Key = "AllowLateSubmission",
-                Value = "false",
-                Description = "Allow a student's first submission after the assignment deadline."
-            },
-            new ApplicationSetting
-            {
-                InstitutionId = institutionId,
-                Key = "AllowStudentSubmissionUpdate",
-                Value = "true",
-                Description = "Allow students to update submissions before the deadline when the assignment permits resubmission."
-            }
-        };
+                Key = x.Key,
+                Value = x.DefaultValue ? "true" : "false",
+                Description = x.Description
+            });
 
         foreach (var setting in settings)
         {

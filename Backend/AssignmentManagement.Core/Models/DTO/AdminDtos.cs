@@ -188,3 +188,12 @@ public sealed class SettingRequest
 }
 
 public sealed record SettingResponse(long Id, string Key, string Value, string? Description);
+
+public sealed record SettingCatalogResponse(
+    string Key,
+    string Title,
+    string Description,
+    string Alignment,
+    bool DefaultValue,
+    bool IsConfigured,
+    bool IsEnabled);

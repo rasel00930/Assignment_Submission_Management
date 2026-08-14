@@ -30,6 +30,7 @@ public sealed class AssignmentService : IAssignmentService
         AssignmentQueryRequest request,
         CancellationToken cancellationToken = default)
     {
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
         var query = ApplyCurrentUserAccess(_unitOfWork.Assignments.Table.AsNoTracking());
 
         if (request.Status.HasValue)
@@ -53,7 +54,7 @@ public sealed class AssignmentService : IAssignmentService
         var items = await Project(query
             .OrderByDescending(x => x.CreatedAtUtc)
             .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize))
+            .Take(request.PageSize), policies)
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<AssignmentResponse>(
@@ -61,6 +62,18 @@ public sealed class AssignmentService : IAssignmentService
             request.PageNumber,
             request.PageSize,
             totalCount);
+    }
+
+    public async Task<AssignmentPolicyResponse> GetPoliciesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
+        return new AssignmentPolicyResponse(
+            policies.AllowLateSubmission,
+            policies.AllowStudentSubmissionUpdate,
+            policies.AllowSubmissionFileUpload,
+            policies.RequireFeedbackForGrading,
+            policies.ShowGradesImmediately);
     }
 
     public async Task<AssignmentResponse> GetByIdAsync(
@@ -87,7 +100,10 @@ public sealed class AssignmentService : IAssignmentService
                 accessData.Status))
             throw new AppException(404, "Assignment was not found or you do not have access to it.");
 
-        return await Project(_unitOfWork.Assignments.Table.AsNoTracking().Where(x => x.Id == id))
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
+        return await Project(
+                _unitOfWork.Assignments.Table.AsNoTracking().Where(x => x.Id == id),
+                policies)
             .FirstAsync(cancellationToken);
     }
 
@@ -108,7 +124,10 @@ public sealed class AssignmentService : IAssignmentService
             MaximumMarks = request.MaximumMarks,
             Status = request.PublishNow ? AssignmentStatus.Published : AssignmentStatus.Draft,
             AllowResubmission = request.AllowResubmission,
+            AllowLateSubmission = request.AllowLateSubmission,
             AllowFileUpload = request.AllowFileUpload,
+            RequireFeedbackForGrading = request.RequireFeedbackForGrading,
+            ShowGradesImmediately = request.ShowGradesImmediately,
             InstitutionId = _currentUser.InstitutionId,
             TeacherClassSubjectId = mapping.Id,
             CreatedByTeacherId = _currentUser.UserId,
@@ -154,7 +173,10 @@ public sealed class AssignmentService : IAssignmentService
         entity.MaximumMarks = request.MaximumMarks;
         entity.TeacherClassSubjectId = mapping.Id;
         entity.AllowResubmission = request.AllowResubmission;
+        entity.AllowLateSubmission = request.AllowLateSubmission;
         entity.AllowFileUpload = request.AllowFileUpload;
+        entity.RequireFeedbackForGrading = request.RequireFeedbackForGrading;
+        entity.ShowGradesImmediately = request.ShowGradesImmediately;
         entity.UpdatedAtUtc = _dateTimeProvider.UtcNow;
         entity.UpdatedByUserId = _currentUser.UserId;
 
@@ -260,7 +282,35 @@ public sealed class AssignmentService : IAssignmentService
             cancellationToken: cancellationToken)
         ?? throw new AppException(400, "The selected teacher-class-subject assignment is invalid.");
 
-    private static IQueryable<AssignmentResponse> Project(IQueryable<Assignment> query) =>
+    private async Task<ApplicationPolicies> GetApplicationPoliciesAsync(
+        CancellationToken cancellationToken)
+    {
+        var values = await _unitOfWork.Settings.Table
+            .AsNoTracking()
+            .Where(x =>
+                x.InstitutionId == _currentUser.InstitutionId &&
+                x.IsActive &&
+                ApplicationSettingKeys.Supported.Contains(x.Key))
+            .Select(x => new { x.Key, x.Value })
+            .ToListAsync(cancellationToken);
+
+        bool ReadBoolean(string key, bool defaultValue)
+        {
+            var value = values.FirstOrDefault(x => x.Key == key)?.Value;
+            return bool.TryParse(value, out var parsed) ? parsed : defaultValue;
+        }
+
+        return new ApplicationPolicies(
+            ReadBoolean(ApplicationSettingKeys.AllowLateSubmission, false),
+            ReadBoolean(ApplicationSettingKeys.AllowStudentSubmissionUpdate, true),
+            ReadBoolean(ApplicationSettingKeys.AllowSubmissionFileUpload, false),
+            ReadBoolean(ApplicationSettingKeys.RequireFeedbackForGrading, false),
+            ReadBoolean(ApplicationSettingKeys.ShowGradesImmediately, false));
+    }
+
+    private static IQueryable<AssignmentResponse> Project(
+        IQueryable<Assignment> query,
+        ApplicationPolicies policies) =>
         query.Select(x => new AssignmentResponse(
             x.Id,
             x.Title,
@@ -269,7 +319,15 @@ public sealed class AssignmentService : IAssignmentService
             x.MaximumMarks,
             x.Status,
             x.AllowResubmission,
+            x.AllowLateSubmission,
             x.AllowFileUpload,
+            x.RequireFeedbackForGrading,
+            x.ShowGradesImmediately,
+            x.AllowLateSubmission && policies.AllowLateSubmission,
+            x.AllowResubmission && policies.AllowStudentSubmissionUpdate,
+            x.AllowFileUpload && policies.AllowSubmissionFileUpload,
+            x.RequireFeedbackForGrading && policies.RequireFeedbackForGrading,
+            x.ShowGradesImmediately && policies.ShowGradesImmediately,
             x.TeacherClassSubjectId,
             x.TeacherClassSubject.AcademicClassId,
             x.TeacherClassSubject.AcademicClass.Name,
@@ -280,6 +338,13 @@ public sealed class AssignmentService : IAssignmentService
             x.CreatedByTeacher.FullName,
             x.Submissions.Count,
             x.CreatedAtUtc));
+
+    private sealed record ApplicationPolicies(
+        bool AllowLateSubmission,
+        bool AllowStudentSubmissionUpdate,
+        bool AllowSubmissionFileUpload,
+        bool RequireFeedbackForGrading,
+        bool ShowGradesImmediately);
 
     private static DateTime NormalizeUtc(DateTime value) =>
         value.Kind switch

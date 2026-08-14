@@ -38,6 +38,15 @@ public sealed class AssignmentsController : ControllerBase
     }
 
     [Authorize(Roles = AppRoles.Teacher)]
+    [HttpGet("policies")]
+    public async Task<ActionResult<GeneralResponse<AssignmentPolicyResponse>>> GetPolicies(
+        CancellationToken cancellationToken)
+    {
+        var result = await _assignmentService.GetPoliciesAsync(cancellationToken);
+        return Ok(GeneralResponse<AssignmentPolicyResponse>.Ok(result));
+    }
+
+    [Authorize(Roles = AppRoles.Teacher)]
     [HttpPost]
     public async Task<ActionResult<GeneralResponse<AssignmentResponse>>> Create(
         CreateAssignmentRequest request,

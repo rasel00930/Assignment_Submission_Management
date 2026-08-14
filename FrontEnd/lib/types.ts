@@ -3,6 +3,7 @@ export type Role = "Admin" | "Teacher" | "Student";
 export enum InstitutionType {
   School = "School",
   College = "College",
+  University = "University",
 }
 
 export enum AssignmentStatus {
@@ -113,6 +114,24 @@ export interface SettingResponse {
   description?: string | null;
 }
 
+export interface SettingCatalogResponse {
+  key: string;
+  title: string;
+  description: string;
+  alignment: string;
+  defaultValue: boolean;
+  isConfigured: boolean;
+  isEnabled: boolean;
+}
+
+export interface AssignmentPolicyResponse {
+  allowLateSubmission: boolean;
+  allowStudentSubmissionUpdate: boolean;
+  allowSubmissionFileUpload: boolean;
+  requireFeedbackForGrading: boolean;
+  showGradesImmediately: boolean;
+}
+
 export interface AssignmentResponse {
   id: number;
   title: string;
@@ -121,7 +140,15 @@ export interface AssignmentResponse {
   maximumMarks: number;
   status: AssignmentStatus;
   allowResubmission: boolean;
+  allowLateSubmission: boolean;
   allowFileUpload: boolean;
+  requireFeedbackForGrading: boolean;
+  showGradesImmediately: boolean;
+  lateSubmissionEnabled: boolean;
+  resubmissionEnabled: boolean;
+  fileUploadEnabled: boolean;
+  feedbackRequiredForGrading: boolean;
+  gradesVisibleImmediately: boolean;
   teacherClassSubjectId: number;
   academicClassId: number;
   className: string;
@@ -139,6 +166,7 @@ export interface SubmissionResponse {
   assignmentId: number;
   assignmentTitle: string;
   assignmentMaximumMarks: number;
+  feedbackRequiredForGrading: boolean;
   studentId: number;
   studentName: string;
   studentUserName: string;

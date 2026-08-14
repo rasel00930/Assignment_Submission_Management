@@ -13,8 +13,11 @@ public sealed class Assignment : BaseEntity
     public DateTime DeadlineUtc { get; set; }
     public decimal MaximumMarks { get; set; }
     public AssignmentStatus Status { get; set; } = AssignmentStatus.Draft;
-    public bool AllowResubmission { get; set; } = true;
+    public bool AllowResubmission { get; set; }
+    public bool AllowLateSubmission { get; set; }
     public bool AllowFileUpload { get; set; }
+    public bool RequireFeedbackForGrading { get; set; }
+    public bool ShowGradesImmediately { get; set; }
 
     public long InstitutionId { get; set; }
     public Institution Institution { get; set; } = null!;

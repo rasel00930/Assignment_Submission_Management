@@ -28,8 +28,11 @@ public sealed class CreateAssignmentRequest
     [Range(1, long.MaxValue)]
     public long TeacherClassSubjectId { get; set; }
 
-    public bool AllowResubmission { get; set; } = true;
+    public bool AllowResubmission { get; set; }
+    public bool AllowLateSubmission { get; set; }
     public bool AllowFileUpload { get; set; }
+    public bool RequireFeedbackForGrading { get; set; }
+    public bool ShowGradesImmediately { get; set; }
     public bool PublishNow { get; set; }
 }
 
@@ -49,8 +52,11 @@ public sealed class UpdateAssignmentRequest
     [Range(1, long.MaxValue)]
     public long TeacherClassSubjectId { get; set; }
 
-    public bool AllowResubmission { get; set; } = true;
+    public bool AllowResubmission { get; set; }
+    public bool AllowLateSubmission { get; set; }
     public bool AllowFileUpload { get; set; }
+    public bool RequireFeedbackForGrading { get; set; }
+    public bool ShowGradesImmediately { get; set; }
 }
 
 public sealed record AssignmentResponse(
@@ -61,7 +67,15 @@ public sealed record AssignmentResponse(
     decimal MaximumMarks,
     AssignmentStatus Status,
     bool AllowResubmission,
+    bool AllowLateSubmission,
     bool AllowFileUpload,
+    bool RequireFeedbackForGrading,
+    bool ShowGradesImmediately,
+    bool LateSubmissionEnabled,
+    bool ResubmissionEnabled,
+    bool FileUploadEnabled,
+    bool FeedbackRequiredForGrading,
+    bool GradesVisibleImmediately,
     long TeacherClassSubjectId,
     long AcademicClassId,
     string ClassName,
@@ -72,3 +86,10 @@ public sealed record AssignmentResponse(
     string TeacherName,
     int SubmissionCount,
     DateTime CreatedAtUtc);
+
+public sealed record AssignmentPolicyResponse(
+    bool AllowLateSubmission,
+    bool AllowStudentSubmissionUpdate,
+    bool AllowSubmissionFileUpload,
+    bool RequireFeedbackForGrading,
+    bool ShowGradesImmediately);

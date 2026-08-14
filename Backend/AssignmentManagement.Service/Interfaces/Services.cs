@@ -68,6 +68,7 @@ public interface IAdminService
     Task DeactivateTeacherAssignmentAsync(long id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyCollection<SettingResponse>> GetSettingsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<SettingCatalogResponse>> GetSettingCatalogAsync(CancellationToken cancellationToken = default);
     Task<SettingResponse> UpsertSettingAsync(SettingRequest request, CancellationToken cancellationToken = default);
 }
 
@@ -76,6 +77,7 @@ public interface IAssignmentService
     Task<PagedResponse<AssignmentResponse>> GetAsync(
         AssignmentQueryRequest request,
         CancellationToken cancellationToken = default);
+    Task<AssignmentPolicyResponse> GetPoliciesAsync(CancellationToken cancellationToken = default);
     Task<AssignmentResponse> GetByIdAsync(long id, CancellationToken cancellationToken = default);
     Task<AssignmentResponse> CreateAsync(CreateAssignmentRequest request, CancellationToken cancellationToken = default);
     Task<AssignmentResponse> UpdateAsync(long id, UpdateAssignmentRequest request, CancellationToken cancellationToken = default);

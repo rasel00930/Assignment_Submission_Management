@@ -33,6 +33,7 @@ public sealed class SubmissionService : ISubmissionService
     SubmissionQueryRequest request,
     CancellationToken cancellationToken = default)
     {
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
         var query = ApplyCurrentUserAccess(
             _unitOfWork.Submissions.Table.AsNoTracking());
 
@@ -66,30 +67,13 @@ public sealed class SubmissionService : ISubmissionService
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        var items = await Project(
+                query
             .OrderByDescending(x => x.SubmittedAtUtc)
             .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(x => new SubmissionResponse(
-                x.Id,
-                x.AssignmentId,
-                x.Assignment.Title,
-                x.Assignment.MaximumMarks,
-                x.StudentId,
-                x.Student.FullName,
-                x.Student.UserName,
-                x.AnswerText,
-                x.FileName,
-                x.FileContentType,
-                x.FileSize,
-                x.SubmittedAtUtc,
-                x.Status,
-                x.Marks,
-                x.Feedback,
-                x.ReviewedAtUtc,
-                x.ReviewedByTeacherId.HasValue
-                    ? x.ReviewedByTeacher!.FullName
-                    : null))
+            .Take(request.PageSize),
+                policies,
+                _currentUser.IsInRole(AppRoles.Student))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<SubmissionResponse>(
@@ -120,7 +104,11 @@ public sealed class SubmissionService : ISubmissionService
                 accessData.AssignmentTeacherId))
             throw new AppException(404, "Submission was not found or you do not have access to it.");
 
-        return await Project(_unitOfWork.Submissions.Table.AsNoTracking().Where(x => x.Id == id))
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
+        return await Project(
+                _unitOfWork.Submissions.Table.AsNoTracking().Where(x => x.Id == id),
+                policies,
+                _currentUser.IsInRole(AppRoles.Student))
             .FirstAsync(cancellationToken);
     }
 
@@ -149,17 +137,14 @@ public sealed class SubmissionService : ISubmissionService
         if (assignment.TeacherClassSubject.AcademicClassId != _currentUser.AcademicClassId.Value)
             throw new AppException(403, "This assignment is not assigned to your class/course.");
 
-        if (file is not null && !assignment.AllowFileUpload)
+        var policies = await GetApplicationPoliciesAsync(cancellationToken);
+
+        if (file is not null && !(assignment.AllowFileUpload && policies.AllowSubmissionFileUpload))
             throw new AppException(409, "File upload is not allowed for this assignment.");
 
-        var allowLateSubmission = await GetBooleanSettingAsync(
-            "AllowLateSubmission",
-            defaultValue: false,
-            cancellationToken);
-        var allowStudentSubmissionUpdate = await GetBooleanSettingAsync(
-            "AllowStudentSubmissionUpdate",
-            defaultValue: true,
-            cancellationToken);
+        var allowLateSubmission = SubmissionRules.IsLateSubmissionAllowed(
+            policies.AllowLateSubmission,
+            assignment.AllowLateSubmission);
 
         var existing = await _unitOfWork.Submissions.FirstOrDefaultAsync(
             x => x.AssignmentId == assignmentId && x.StudentId == _currentUser.UserId,
@@ -209,7 +194,7 @@ public sealed class SubmissionService : ISubmissionService
             {
                 SubmissionRules.ValidateResubmission(
                     assignment.AllowResubmission,
-                    allowStudentSubmissionUpdate,
+                    policies.AllowStudentSubmissionUpdate,
                     assignment.DeadlineUtc,
                     _dateTimeProvider.UtcNow,
                     existing.Status);
@@ -285,7 +270,9 @@ public sealed class SubmissionService : ISubmissionService
             request.Marks,
             submission.Assignment.MaximumMarks,
             request.Feedback,
-            request.Status);
+            request.Status,
+            submission.Assignment.RequireFeedbackForGrading &&
+            (await GetApplicationPoliciesAsync(cancellationToken)).RequireFeedbackForGrading);
 
         submission.Marks = request.Marks;
         submission.Feedback = string.IsNullOrWhiteSpace(request.Feedback) ? null : request.Feedback.Trim();
@@ -315,28 +302,43 @@ public sealed class SubmissionService : ISubmissionService
         return query.Where(_ => false);
     }
 
-    private async Task<bool> GetBooleanSettingAsync(
-        string key,
-        bool defaultValue,
+    private async Task<ApplicationPolicies> GetApplicationPoliciesAsync(
         CancellationToken cancellationToken)
     {
-        var value = await _unitOfWork.Settings.Table
+        var values = await _unitOfWork.Settings.Table
             .AsNoTracking()
-            .Where(x => x.InstitutionId == _currentUser.InstitutionId && x.Key == key && x.IsActive)
-            .Select(x => x.Value)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Where(x =>
+                x.InstitutionId == _currentUser.InstitutionId &&
+                x.IsActive &&
+                ApplicationSettingKeys.Supported.Contains(x.Key))
+            .Select(x => new { x.Key, x.Value })
+            .ToListAsync(cancellationToken);
 
-        return bool.TryParse(value, out var parsed) ? parsed : defaultValue;
+        bool ReadBoolean(string key, bool defaultValue)
+        {
+            var value = values.FirstOrDefault(x => x.Key == key)?.Value;
+            return bool.TryParse(value, out var parsed) ? parsed : defaultValue;
+        }
+
+        return new ApplicationPolicies(
+            ReadBoolean(ApplicationSettingKeys.AllowLateSubmission, false),
+            ReadBoolean(ApplicationSettingKeys.AllowStudentSubmissionUpdate, true),
+            ReadBoolean(ApplicationSettingKeys.AllowSubmissionFileUpload, false),
+            ReadBoolean(ApplicationSettingKeys.RequireFeedbackForGrading, false),
+            ReadBoolean(ApplicationSettingKeys.ShowGradesImmediately, false));
     }
 
     private static IQueryable<SubmissionResponse> Project(
-    IQueryable<Submission> query)
+        IQueryable<Submission> query,
+        ApplicationPolicies policies,
+        bool hideUnreleasedGrades)
     {
         return query.Select(x => new SubmissionResponse(
             x.Id,
             x.AssignmentId,
             x.Assignment.Title,
             x.Assignment.MaximumMarks,
+            x.Assignment.RequireFeedbackForGrading && policies.RequireFeedbackForGrading,
             x.StudentId,
             x.Student.FullName,
             x.Student.UserName,
@@ -345,14 +347,46 @@ public sealed class SubmissionService : ISubmissionService
             x.FileContentType,
             x.FileSize,
             x.SubmittedAtUtc,
-            x.Status,
-            x.Marks,
-            x.Feedback,
-            x.ReviewedAtUtc,
-            x.ReviewedByTeacherId.HasValue
+            hideUnreleasedGrades &&
+            x.Status == SubmissionStatus.Graded &&
+            x.Assignment.Status != AssignmentStatus.Closed &&
+            !(x.Assignment.ShowGradesImmediately && policies.ShowGradesImmediately)
+                ? SubmissionStatus.UnderReview
+                : x.Status,
+            hideUnreleasedGrades &&
+            x.Status == SubmissionStatus.Graded &&
+            x.Assignment.Status != AssignmentStatus.Closed &&
+            !(x.Assignment.ShowGradesImmediately && policies.ShowGradesImmediately)
+                ? null
+                : x.Marks,
+            hideUnreleasedGrades &&
+            x.Status == SubmissionStatus.Graded &&
+            x.Assignment.Status != AssignmentStatus.Closed &&
+            !(x.Assignment.ShowGradesImmediately && policies.ShowGradesImmediately)
+                ? null
+                : x.Feedback,
+            hideUnreleasedGrades &&
+            x.Status == SubmissionStatus.Graded &&
+            x.Assignment.Status != AssignmentStatus.Closed &&
+            !(x.Assignment.ShowGradesImmediately && policies.ShowGradesImmediately)
+                ? null
+                : x.ReviewedAtUtc,
+            !hideUnreleasedGrades ||
+            x.Status != SubmissionStatus.Graded ||
+            x.Assignment.Status == AssignmentStatus.Closed ||
+            (x.Assignment.ShowGradesImmediately && policies.ShowGradesImmediately)
+                ? x.ReviewedByTeacherId.HasValue
                 ? x.ReviewedByTeacher!.FullName
+                    : null
                 : null));
     }
+
+    private sealed record ApplicationPolicies(
+        bool AllowLateSubmission,
+        bool AllowStudentSubmissionUpdate,
+        bool AllowSubmissionFileUpload,
+        bool RequireFeedbackForGrading,
+        bool ShowGradesImmediately);
 
     private static void ApplyFile(Submission submission, StoredSubmissionFile? file)
     {

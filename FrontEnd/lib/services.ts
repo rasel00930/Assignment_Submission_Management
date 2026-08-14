@@ -8,6 +8,8 @@ import type {
   PagedResponse,
   PagingParams,
   SettingResponse,
+  SettingCatalogResponse,
+  AssignmentPolicyResponse,
   SubmissionResponse,
   SubmissionStatus,
   SubjectResponse,
@@ -104,12 +106,18 @@ export const adminService = {
   async getSettings() {
     return data(await api.get<ApiResponse<SettingResponse[]>>("/api/admin/settings"));
   },
+  async getSettingCatalog() {
+    return data(await api.get<ApiResponse<SettingCatalogResponse[]>>("/api/admin/settings/catalog"));
+  },
   async upsertSetting(payload: unknown) {
     return data(await api.put<ApiResponse<SettingResponse>>("/api/admin/settings", payload));
   },
 };
 
 export const assignmentService = {
+  async getPolicies() {
+    return data(await api.get<ApiResponse<AssignmentPolicyResponse>>("/api/assignments/policies"));
+  },
   async get(params: PagingParams & { status?: AssignmentStatus; academicClassId?: number; subjectId?: number; teacherId?: number }) {
     return data(await api.get<ApiResponse<PagedResponse<AssignmentResponse>>>("/api/assignments", { params }));
   },

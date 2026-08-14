@@ -165,8 +165,11 @@ Swagger contains the complete request/response schema and JWT Bearer authorizati
 
 - Assignment deadline values must be future UTC timestamps.
 - Maximum marks are limited to `0 < marks <= 10000`.
-- Late submission is controlled by `AllowLateSubmission` and defaults to `false`.
+- `AllowLateSubmission` is an institution-wide master switch and defaults to `false`; a late first submission is accepted only when the Teacher also enables it on that assignment.
 - Student updates require both assignment resubmission and the global update setting.
+- The backend exposes a dynamic boolean-policy catalogue. Admins can create optional catalogue policies, then enable or disable configured policies.
+- Assignment options are shown to Teachers only when the matching institution policy is enabled. Effective behavior always requires both institution and assignment permission.
+- Catalogue policies currently cover late submission, submission updates, answer-file upload, required grading feedback, and immediate grade visibility.
 - Graded submissions and submissions past the deadline cannot be changed by Students.
 - Awarded marks cannot exceed maximum marks.
 - Returned submissions require feedback.

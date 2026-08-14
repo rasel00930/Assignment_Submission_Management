@@ -27,6 +27,8 @@
 - View assignment details and deadline.
 - Submit an answer.
 - Update before deadline only when the assignment and institution settings allow it.
+- Accept a late first submission only when both the institution setting and that assignment allow it.
+- Create optional boolean policies from the backend catalogue and show matching Teacher assignment toggles only while each global policy is enabled.
 - View only own submissions, status, marks, and feedback.
 
 ## Technical

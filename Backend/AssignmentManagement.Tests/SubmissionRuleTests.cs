@@ -9,6 +9,21 @@ public sealed class SubmissionRuleTests
 {
     private static readonly DateTime Deadline = new(2026, 8, 10, 10, 0, 0, DateTimeKind.Utc);
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void Late_Submission_Requires_Both_Institution_And_Assignment_Permission(
+        bool institutionAllows,
+        bool assignmentAllows,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            SubmissionRules.IsLateSubmissionAllowed(institutionAllows, assignmentAllows));
+    }
+
     [Fact]
     public void Submission_Before_Deadline_Is_Submitted()
     {
@@ -70,7 +85,8 @@ public sealed class SubmissionRuleTests
             marks: 101,
             maximumMarks: 100,
             feedback: "Reviewed",
-            status: SubmissionStatus.Graded));
+            status: SubmissionStatus.Graded,
+            requireFeedbackForGrading: false));
     }
 
     [Fact]
@@ -80,7 +96,8 @@ public sealed class SubmissionRuleTests
             marks: null,
             maximumMarks: 100,
             feedback: "Reviewed",
-            status: SubmissionStatus.Graded));
+            status: SubmissionStatus.Graded,
+            requireFeedbackForGrading: false));
     }
 
     [Fact]
@@ -90,6 +107,29 @@ public sealed class SubmissionRuleTests
             marks: null,
             maximumMarks: 100,
             feedback: null,
-            status: SubmissionStatus.Returned));
+            status: SubmissionStatus.Returned,
+            requireFeedbackForGrading: false));
+    }
+
+    [Fact]
+    public void Grading_Feedback_Is_Required_When_Effective_Policy_Is_Enabled()
+    {
+        Assert.Throws<AppException>(() => SubmissionRules.ValidateReview(
+            marks: 80,
+            maximumMarks: 100,
+            feedback: null,
+            status: SubmissionStatus.Graded,
+            requireFeedbackForGrading: true));
+    }
+
+    [Fact]
+    public void Grading_Feedback_Is_Optional_When_Effective_Policy_Is_Disabled()
+    {
+        SubmissionRules.ValidateReview(
+            marks: 80,
+            maximumMarks: 100,
+            feedback: null,
+            status: SubmissionStatus.Graded,
+            requireFeedbackForGrading: false);
     }
 }

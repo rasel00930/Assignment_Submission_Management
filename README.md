@@ -21,7 +21,7 @@ GitHub: <https://github.com/rasel00930/Assignment_Submission_Management>
 
 - Create, update, publish, return to draft, close, and delete assignments.
 - Target an assignment to an assigned class/course and subject.
-- Set title, description, UTC deadline, maximum marks, and resubmission policy.
+- Set title, description, UTC deadline, maximum marks, resubmission policy, and per-assignment late-submission permission.
 - View submissions only for assignments owned by the Teacher.
 - mark submissions as Under Review, Graded, or Returned.
 - Award marks and provide written feedback.
@@ -204,6 +204,9 @@ Important constraints include unique usernames/emails, unique class-subject Teac
 - Maximum marks must be greater than zero and no more than 10,000.
 - Late submissions are disabled by default.
 - Submission updates require both assignment and application settings to allow them.
+- Late first submissions require both the institution-wide setting and the individual assignment permission.
+- Optional boolean policies are created from the backend catalogue; enabled policies dynamically unlock their matching Teacher assignment toggles.
+- File upload, required grading feedback, and immediate grade visibility also require both institution and assignment permission.
 - Updates after the deadline and updates to graded submissions are rejected.
 - Awarded marks cannot exceed the assignment maximum.
 - Returned submissions require feedback.
@@ -244,7 +247,7 @@ npm run build
 4. Teacher authorization is based on an Admin-created Teacher-Class-Subject mapping.
 5. Deadlines are stored and exchanged in UTC.
 6. Answers are text submissions; file upload and attachment storage are outside the current scope.
-7. Application settings control late submission and Student update behavior.
+7. Application settings act as institution-wide master switches; assignment-level permissions must also allow late submission or Student updates.
 8. Pagination is supported by list APIs and screens where applicable.
 
 ## Known Limitations
