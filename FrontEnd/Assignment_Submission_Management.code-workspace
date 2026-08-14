@@ -7,6 +7,20 @@
   "settings": {
     "git.ignoredRepositories": [
       "FrontEnd"
-    ]
+    ],
+    "files.exclude": {
+      "Backend": true,
+      "Database": true,
+      ".gitattributes": true,
+      ".gitignore": true,
+      "README.md": true,
+      "REQUIREMENT_COVERAGE.md": true,
+      "RUN_FIRST.md": true,
+      "global.json": true
+    },
+    "search.exclude": {
+      "Backend": true,
+      "Database": true
+    }
   }
 }
