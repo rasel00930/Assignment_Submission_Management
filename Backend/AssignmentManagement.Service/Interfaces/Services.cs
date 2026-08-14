@@ -9,7 +9,26 @@ public interface IAuthService
     Task<TokenResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
     Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
     Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+    Task RequestPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
+    Task ResetPasswordWithCodeAsync(ResetPasswordWithCodeRequest request, CancellationToken cancellationToken = default);
     Task<UserSummary> GetCurrentUserAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IEmailService
+{
+    Task SendAccountCredentialsAsync(
+        string recipientEmail,
+        string recipientName,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default);
+
+    Task SendPasswordResetCodeAsync(
+        string recipientEmail,
+        string recipientName,
+        string verificationCode,
+        int expiresInMinutes,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IAdminService

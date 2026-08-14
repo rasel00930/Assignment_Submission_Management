@@ -14,6 +14,7 @@ public sealed class AssignmentDbContext : DbContext
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
     public DbSet<AcademicClass> AcademicClasses => Set<AcademicClass>();
     public DbSet<Subject> Subjects => Set<Subject>();
     public DbSet<TeacherClassSubject> TeacherClassSubjects => Set<TeacherClassSubject>();
@@ -30,6 +31,8 @@ public sealed class AssignmentDbContext : DbContext
         modelBuilder.Entity<AppUser>().HasIndex(x => x.UserName).IsUnique();
         modelBuilder.Entity<AppUser>().HasIndex(x => x.Email).IsUnique();
         modelBuilder.Entity<RefreshToken>().HasIndex(x => x.TokenHash).IsUnique();
+        modelBuilder.Entity<PasswordResetCode>()
+            .HasIndex(x => new { x.UserId, x.CreatedAtUtc });
         modelBuilder.Entity<AcademicClass>()
             .HasIndex(x => new { x.InstitutionId, x.Name, x.Section, x.AcademicYear })
             .IsUnique();
@@ -156,6 +159,12 @@ public sealed class AssignmentDbContext : DbContext
         modelBuilder.Entity<RefreshToken>()
             .HasOne(x => x.User)
             .WithMany(x => x.RefreshTokens)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PasswordResetCode>()
+            .HasOne(x => x.User)
+            .WithMany(x => x.PasswordResetCodes)
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 

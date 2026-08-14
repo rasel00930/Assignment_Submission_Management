@@ -26,7 +26,7 @@ builder.Host.UseSerilog((context, loggerConfiguration) =>
 
 builder.Services
     .AddInfrastructureDI(builder.Configuration)
-    .AddServiceDI();
+    .AddServiceDI(builder.Configuration);
 
 builder.Services
     .AddControllers()

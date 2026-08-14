@@ -32,6 +32,12 @@ export const authService = {
   async changePassword(payload: { currentPassword: string; newPassword: string }) {
     return data(await api.post<ApiResponse<null>>("/api/auth/change-password", payload));
   },
+  async forgotPassword(email: string) {
+    return data(await api.post<ApiResponse<null>>("/api/auth/forgot-password", { email }));
+  },
+  async resetPassword(payload: { email: string; verificationCode: string; newPassword: string }) {
+    return data(await api.post<ApiResponse<null>>("/api/auth/reset-password", payload));
+  },
 };
 
 export const adminService = {

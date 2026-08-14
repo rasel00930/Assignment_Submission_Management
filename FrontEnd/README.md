@@ -10,6 +10,7 @@ Responsive Next.js frontend for the role-based Assignment & Submission Managemen
 - React Hook Form and Zod validation
 - Axios API integration
 - JWT access token and refresh-token handling
+- Email verification-code password reset
 - Role-based protected routes
 
 ## Role-Based Screens
@@ -111,6 +112,7 @@ FrontEnd/
 - A `401 Unauthorized` response attempts one refresh-token rotation.
 - A failed refresh removes the session and sends the user to login.
 - Client-side guards restrict pages by Admin, Teacher, and Student role.
+- The forgot-password flow sends a six-digit email code before accepting a new password.
 - The backend remains responsible for final authorization and data ownership checks.
 
 ## Validation

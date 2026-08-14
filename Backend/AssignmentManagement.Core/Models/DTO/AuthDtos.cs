@@ -26,6 +26,24 @@ public sealed class ChangePasswordRequest
     public string NewPassword { get; set; } = null!;
 }
 
+public sealed class ForgotPasswordRequest
+{
+    [Required, EmailAddress, MaxLength(100)]
+    public string Email { get; set; } = null!;
+}
+
+public sealed class ResetPasswordWithCodeRequest
+{
+    [Required, EmailAddress, MaxLength(100)]
+    public string Email { get; set; } = null!;
+
+    [Required, RegularExpression("^[0-9]{6}$", ErrorMessage = "Verification code must contain 6 digits.")]
+    public string VerificationCode { get; set; } = null!;
+
+    [Required, MinLength(8), MaxLength(100)]
+    public string NewPassword { get; set; } = null!;
+}
+
 public sealed record UserSummary(
     long Id,
     string FullName,

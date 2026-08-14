@@ -99,7 +99,7 @@ export default function UsersPage() {
     try {
       if (editing) await adminService.updateUser(editing.id, payload);
       else await adminService.createUser({ ...payload, password: values.password });
-      toast.success(editing ? "User updated" : "User created");
+      toast.success(editing ? "User updated" : "User created and login credentials emailed");
       setModalOpen(false);
       await load();
     } catch (error) { toast.error(errorMessage(error)); }
@@ -154,7 +154,7 @@ export default function UsersPage() {
         <Pagination page={page} totalPages={totalPages} totalCount={totalCount} onPageChange={setPage} />
       </Card>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit user" : "Create user"} description="Assign the correct role and class access.">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit user" : "Create user"} description={editing ? "Update account details and access." : "Assign access and email the temporary login credentials to the user."}>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={form.handleSubmit(save)}>
           <div className="sm:col-span-2"><label className="field-label">Full name</label><Input {...form.register("fullName")} />{form.formState.errors.fullName && <p className="field-error">{form.formState.errors.fullName.message}</p>}</div>
           <div><label className="field-label">Email</label><Input type="email" {...form.register("email")} />{form.formState.errors.email && <p className="field-error">{form.formState.errors.email.message}</p>}</div>

@@ -24,6 +24,18 @@ Swagger should open at <https://localhost:7081/swagger>. The API automatically c
 
 If automatic creation fails, run `Database/000_create_database.sql`, then `Database/001_initial_schema.sql`, and restart the API.
 
+Before creating users or testing password reset, configure SMTP securely from `Backend/`:
+
+```powershell
+dotnet user-secrets set "Email:Enabled" "true" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Host" "smtp.gmail.com" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Port" "587" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:UseSsl" "true" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:UserName" "YOUR_SMTP_USERNAME" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Password" "YOUR_SMTP_PASSWORD" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:FromEmail" "YOUR_FROM_EMAIL" --project AssignmentManagement.WebAPI
+```
+
 ## Start the Frontend
 
 Open another terminal from the repository root:

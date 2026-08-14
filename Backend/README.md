@@ -50,6 +50,22 @@ The default development URLs are:
 
 The default allowed frontend origin is `http://localhost:3000`.
 
+### Email and password reset
+
+Account credentials and password-reset verification codes are sent through SMTP. Keep SMTP credentials out of `appsettings.json`; configure them with .NET User Secrets from `Backend/`:
+
+```powershell
+dotnet user-secrets set "Email:Enabled" "true" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Host" "smtp.gmail.com" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Port" "587" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:UseSsl" "true" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:UserName" "YOUR_SMTP_USERNAME" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:Password" "YOUR_SMTP_PASSWORD" --project AssignmentManagement.WebAPI
+dotnet user-secrets set "Email:FromEmail" "YOUR_FROM_EMAIL" --project AssignmentManagement.WebAPI
+```
+
+User creation is transactional: if the credentials email cannot be delivered, the new account is not committed. Password-reset codes contain six digits, expire after 10 minutes, are one-time use, and are stored only as keyed hashes.
+
 ## Database Setup
 
 With `Database:AutoCreate=true`, startup calls `EnsureCreatedAsync()` and then performs idempotent data seeding. The initializer creates roles, institution settings, three demo users, `Class 10 - A`, `Mathematics (MATH-101)`, and a Teacher mapping.
@@ -96,6 +112,8 @@ Change these local demo passwords and the JWT key before any deployment.
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `POST /api/auth/change-password`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 - `GET /api/auth/me`
 
 ### Administration

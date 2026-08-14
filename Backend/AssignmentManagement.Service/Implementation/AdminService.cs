@@ -16,17 +16,20 @@ public sealed class AdminService : IAdminService
     private readonly ICurrentUserService _currentUser;
     private readonly IPasswordHasher<AppUser> _passwordHasher;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IEmailService _emailService;
 
     public AdminService(
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         IPasswordHasher<AppUser> passwordHasher,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        IEmailService emailService)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _passwordHasher = passwordHasher;
         _dateTimeProvider = dateTimeProvider;
+        _emailService = emailService;
     }
 
     public async Task<PagedResponse<UserResponse>> GetUsersAsync(
@@ -117,6 +120,21 @@ public sealed class AdminService : IAdminService
 
         await _unitOfWork.Users.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _emailService.SendAccountCredentialsAsync(
+                user.Email,
+                user.FullName,
+                user.UserName,
+                request.Password,
+                cancellationToken);
+        }
+        catch
+        {
+            _unitOfWork.Users.Delete(user);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            throw;
+        }
 
         return await GetUserByIdAsync(user.Id, cancellationToken);
     }

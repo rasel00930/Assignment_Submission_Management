@@ -37,6 +37,28 @@ public sealed class AuthController : ControllerBase
         return Ok(GeneralResponse<TokenResponse>.Ok(result, "Token refreshed."));
     }
 
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult<GeneralResponse<object>>> ForgotPassword(
+        ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _authService.RequestPasswordResetAsync(request, cancellationToken);
+        return Ok(GeneralResponse<object>.Ok(
+            null,
+            "If the email belongs to an active account, a verification code has been sent."));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<GeneralResponse<object>>> ResetPassword(
+        ResetPasswordWithCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _authService.ResetPasswordWithCodeAsync(request, cancellationToken);
+        return Ok(GeneralResponse<object>.Ok(null, "Password reset successfully. You can now sign in."));
+    }
+
     [Authorize]
     [HttpPost("logout")]
     public async Task<ActionResult<GeneralResponse<object>>> Logout(

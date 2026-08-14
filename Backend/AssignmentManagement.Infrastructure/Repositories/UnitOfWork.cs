@@ -18,6 +18,7 @@ public sealed class UnitOfWork : IUnitOfWork
         Users = new GenericRepository<AppUser>(dbContext);
         UserRoles = new GenericRepository<UserRole>(dbContext);
         RefreshTokens = new GenericRepository<RefreshToken>(dbContext);
+        PasswordResetCodes = new GenericRepository<PasswordResetCode>(dbContext);
         AcademicClasses = new GenericRepository<AcademicClass>(dbContext);
         Subjects = new GenericRepository<Subject>(dbContext);
         TeacherClassSubjects = new GenericRepository<TeacherClassSubject>(dbContext);
@@ -31,6 +32,7 @@ public sealed class UnitOfWork : IUnitOfWork
     public IGenericRepository<AppUser> Users { get; }
     public IGenericRepository<UserRole> UserRoles { get; }
     public IGenericRepository<RefreshToken> RefreshTokens { get; }
+    public IGenericRepository<PasswordResetCode> PasswordResetCodes { get; }
     public IGenericRepository<AcademicClass> AcademicClasses { get; }
     public IGenericRepository<Subject> Subjects { get; }
     public IGenericRepository<TeacherClassSubject> TeacherClassSubjects { get; }
