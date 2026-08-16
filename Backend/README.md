@@ -99,8 +99,8 @@ dotnet dev-certs https --trust
 | Role | Username | Password |
 | --- | --- | --- |
 | Admin | `admin` | `Admin@123` |
-| Teacher | `teacher` | `Teacher@123` |
-| Student | `student` | `Student@123` |
+| Teacher | `teacher` | `Ra123456@#` |
+| Student | `rasel0098` | `Ra123456@#` |
 
 Change these local demo passwords and the JWT key before any deployment.
 
