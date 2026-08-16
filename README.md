@@ -165,8 +165,8 @@ The API seeds these accounts on first startup:
 | Role | Username | Email | Password |
 | --- | --- | --- | --- |
 | Admin | `admin` | `admin@demo.local` | `Admin@123` |
-| Teacher | `teacher` | `teacher@demo.local` | `Teacher@123` |
-| Student | `student` | `student@demo.local` | `Student@123` |
+| Teacher | `teacher` | `raselahmed00950@gmail.com` | `Ra123456@#` |
+| Student | `rasel0098` | `raselahmed00930@gmail.com` | `Ra123456@#` |
 
 The demo Teacher is mapped to `Class 10 - A` and `Mathematics (MATH-101)`. The demo Student belongs to that class. These credentials are development data only; change all passwords before deployment.
 
